@@ -506,6 +506,8 @@ def create_personalized_analysis(data, patient_conditions, time_horizon=None, ti
         .patient-analysis {
             font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont;
             margin: 20px 0;
+            width: 100%;
+            max-width: 100%;
         }
         .condition-section {
             margin-bottom: 30px;
@@ -513,6 +515,7 @@ def create_personalized_analysis(data, patient_conditions, time_horizon=None, ti
             border-radius: 8px;
             padding: 20px;
             background-color: #f8f9fa;
+            width: 100%;
         }
         .condition-header {
             font-size: 1.2em;
@@ -526,16 +529,19 @@ def create_personalized_analysis(data, patient_conditions, time_horizon=None, ti
             border-collapse: collapse;
             margin: 10px 0;
             background-color: white;
+            font-size: 14px;
         }
         .trajectory-table th {
             background-color: #f5f5f5;
             padding: 12px;
             text-align: left;
             border: 1px solid #ddd;
+            white-space: nowrap;
         }
         .trajectory-table td {
             padding: 10px;
             border: 1px solid #ddd;
+            vertical-align: top;
         }
         .risk-badge {
             padding: 4px 8px;
@@ -555,10 +561,34 @@ def create_personalized_analysis(data, patient_conditions, time_horizon=None, ti
             font-style: italic;
             color: #666;
         }
+        @media (max-width: 1200px) {
+            .trajectory-table {
+                display: block;
+                overflow-x: auto;
+                white-space: nowrap;
+            }
+        }
+        .analysis-container {
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .summary-section {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid #e2e8f0;
+        }
     </style>
     <div class="patient-analysis">
-        <h2>Personalized Disease Trajectory Analysis</h2>
-        <p>Based on current conditions: """ + ", ".join(patient_conditions) + "</p>"
+        <div class="analysis-container">
+            <h2>Personalized Disease Trajectory Analysis</h2>
+            <div class="summary-section">
+                <h3>Current Conditions:</h3>
+                <p>""" + ", ".join(f"<span class='system-tag'>{condition_categories.get(cond, 'Other')}</span> {cond}" for cond in patient_conditions) + """</p>
+            </div>
+    """
 
     for condition_a in patient_conditions:
         time_filtered_data = filtered_data[filtered_data['ConditionA'] == condition_a]
@@ -633,14 +663,15 @@ def create_personalized_analysis(data, patient_conditions, time_horizon=None, ti
             """
 
     html += """
-        <div style="margin-top: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 8px;">
-            <h4>Understanding This Analysis:</h4>
-            <ul>
-                <li><strong>Risk Level:</strong> Based on odds ratio strength (High: OR≥5, Moderate: OR≥3, Low: OR≥2)</li>
-                <li><strong>Expected Timeline:</strong> Median years and range between which progression typically occurs</li>
-                <li><strong>Statistical Support:</strong> Odds ratio and number of observed cases in the population</li>
-                <li><strong>Progression Details:</strong> Confidence in the order of disease progression</li>
-            </ul>
+            <div class="summary-section">
+                <h4>Understanding This Analysis:</h4>
+                <ul>
+                    <li><strong>Risk Level:</strong> Based on odds ratio strength (High: OR≥5, Moderate: OR≥3, Low: OR≥2)</li>
+                    <li><strong>Expected Timeline:</strong> Median years and range between which progression typically occurs</li>
+                    <li><strong>Statistical Support:</strong> Odds ratio and number of observed cases in the population</li>
+                    <li><strong>Progression Details:</strong> Confidence in the order of disease progression</li>
+                </ul>
+            </div>
         </div>
     </div>
     """
@@ -921,26 +952,22 @@ def main():
                 considering population-level statistics and time-based progression patterns.
                 """)
                 
-                analysis_col1, analysis_col2 = st.columns([3, 1])
+                # Use full width for analysis display
+                st.markdown("### Select Parameters")
+                param_container = st.container()
                 
-                with analysis_col2:
-                    st.markdown("### Parameters")
-                    min_or = st.slider(
-                        "Minimum Odds Ratio",
-                        1.0, 10.0, 2.0, 0.5,
-                        key="personal_min_or",
-                        help="Filter trajectories by minimum odds ratio"
-                    )
+                with param_container:
+                    col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
                     
-                    unique_conditions = sorted(set(data['ConditionA'].unique()) | set(data['ConditionB'].unique()))
-                    selected_conditions = st.multiselect(
-                        "Select Current Conditions",
-                        unique_conditions,
-                        key="personal_conditions",
-                        help="Choose the patient's current conditions"
-                    )
-
-                    if selected_conditions:
+                    with col1:
+                        min_or = st.slider(
+                            "Minimum Odds Ratio",
+                            1.0, 10.0, 2.0, 0.5,
+                            key="personal_min_or",
+                            help="Filter trajectories by minimum odds ratio"
+                        )
+                    
+                    with col2:
                         max_years = math.ceil(data['MedianDurationYearsWithIQR'].apply(lambda x: parse_iqr(x)[0]).max())
                         time_horizon = st.slider(
                             "Time Horizon (years)",
@@ -948,39 +975,56 @@ def main():
                             key="personal_time_horizon",
                             help="Maximum time period to consider"
                         )
-                        
+                    
+                    with col3:
                         time_margin = st.slider(
                             "Time Margin",
                             0.0, 0.5, 0.1, 0.05,
                             key="personal_time_margin",
                             help="Allowable variation in time predictions"
                         )
-
+                    
+                    with col4:
                         analyze_button = st.button(
                             "🔍 Analyze Trajectories",
                             key="personal_analyze",
                             help="Generate personalized analysis"
                         )
+                
+                # Condition selection below parameters
+                unique_conditions = sorted(set(data['ConditionA'].unique()) | set(data['ConditionB'].unique()))
+                selected_conditions = st.multiselect(
+                    "Select Current Conditions",
+                    unique_conditions,
+                    key="personal_conditions",
+                    help="Choose the patient's current conditions"
+                )
 
-                with analysis_col1:
-                    if selected_conditions and analyze_button:
-                        with st.spinner("🔄 Generating personalized analysis..."):
-                            html_content = create_personalized_analysis(
-                                data,
-                                selected_conditions,
-                                time_horizon,
-                                time_margin,
-                                min_or
-                            )
-                            st.components.v1.html(html_content, height=None, scrolling=True)
-                            
-                            # Add download button for the analysis
-                            st.download_button(
-                                label="📥 Download Analysis",
-                                data=html_content,
-                                file_name="personalized_trajectory_analysis.html",
-                                mime="text/html"
-                            )
+                # Analysis results
+                if selected_conditions and analyze_button:
+                    with st.spinner("🔄 Generating personalized analysis..."):
+                        html_content = create_personalized_analysis(
+                            data,
+                            selected_conditions,
+                            time_horizon,
+                            time_margin,
+                            min_or
+                        )
+                        
+                        # Add container styling and increase height
+                        html_container = f"""
+                        <div style="min-height: 800px; width: 100%; padding: 20px;">
+                            {html_content}
+                        </div>
+                        """
+                        st.components.v1.html(html_container, height=1200, scrolling=True)
+                        
+                        st.download_button(
+                            label="📥 Download Analysis",
+                            data=html_content,
+                            file_name="personalized_trajectory_analysis.html",
+                            mime="text/html"
+                        )
 
 if __name__ == "__main__":
     main()
