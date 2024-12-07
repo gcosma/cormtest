@@ -391,40 +391,27 @@ def main():
 
     # Header
     st.title("🏥 Multimorbidity Analysis Tool")
-    st.markdown("""
-    This tool helps analyze disease trajectories and comorbidity patterns in patient data.
-    Upload your data file to begin analysis.
-    """)
-
-    # File uploader in a container
-    with st.container():
-        uploaded_file = st.file_uploader(
-            "Choose a CSV file",
-            type="csv",
-            help="Upload a CSV file containing your patient data"
-        )
-
+    st.write("Upload your data to begin analysis.")
+    
+    uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
+    
     if uploaded_file is not None:
         # Load and process data
-        data, total_patients, gender, age_group = load_and_process_data(uploaded_file)
-
+        data, total_patients, gender, age_group = load_data(uploaded_file)
+        
         if data is not None:
-            # Data summary in an info box
-            st.info(f"""
-            📊 **Data Summary**
-            - Total Patients: {total_patients:,}
-            - Gender: {gender}
-            - Age Group: {age_group}
-            """)
-
-            # Create tabs with icons
+            st.success(f"Data loaded successfully! Total patients: {total_patients}")
+            st.write(f"Gender: {gender}")
+            st.write(f"Age Group: {age_group}")
+            
+            # Create tabs
             tabs = st.tabs([
                 "📈 Sensitivity Analysis",
                 "🔄 Trajectory Prediction",
                 "📋 Personalized Analysis",
                 "🔍 Condition Combinations"
             ])
-
+            
             # Sensitivity Analysis Tab
             with tabs[0]:
                 st.header("Sensitivity Analysis")
@@ -433,44 +420,49 @@ def main():
                 trajectories and population coverage.
                 """)
                 
-                analysis_col1, analysis_col2 = st.columns([3, 1])
+                col1, col2 = st.columns([3, 1])
                 
-                with analysis_col2:
-                    st.markdown("### Control Panel")
-                    analyze_button = st.button(
-                        "🚀 Run Analysis",
-                        key="run_sensitivity",
-                        help="Click to perform sensitivity analysis"
-                    )
+                with col2:
+                    analyze_button = st.button("Run Analysis", 
+                                             help="Click to perform sensitivity analysis")
 
-                with analysis_col1:
+                with col1:
                     if analyze_button:
-                        with st.spinner("💫 Analyzing data..."):
-                            results = perform_sensitivity_analysis(data)
-                            
-                            st.subheader("Analysis Results")
-                            display_df = results.drop('Top_Patterns', axis=1)
-                            st.dataframe(
-                                display_df.style.background_gradient(cmap='YlOrRd', subset=['Coverage_Percent'])
-                            )
+                        with st.spinner("Analyzing data..."):
+                            try:
+                                results = perform_sensitivity_analysis(data)
+                                
+                                st.subheader("Analysis Results")
+                                display_df = results.drop('Top_Patterns', axis=1)
+                                st.dataframe(
+                                    display_df.style.background_gradient(
+                                        cmap='YlOrRd', 
+                                        subset=['Coverage_Percent']
+                                    )
+                                )
 
-                            st.subheader("Top 5 Strongest Trajectories")
-                            patterns_df = pd.DataFrame(results.iloc[0]['Top_Patterns'])
-                            st.dataframe(
-                                patterns_df.style.background_gradient(cmap='YlOrRd', subset=['OddsRatio'])
-                            )
+                                st.subheader("Top 5 Strongest Trajectories")
+                                patterns_df = pd.DataFrame(results.iloc[0]['Top_Patterns'])
+                                st.dataframe(
+                                    patterns_df.style.background_gradient(
+                                        cmap='YlOrRd', 
+                                        subset=['OddsRatio']
+                                    )
+                                )
 
-                            fig = create_sensitivity_plot(results)
-                            st.pyplot(fig)
+                                fig = create_sensitivity_plot(results)
+                                st.pyplot(fig)
 
-                            csv = display_df.to_csv(index=False)
-                            st.download_button(
-                                label="📥 Download Results",
-                                data=csv,
-                                file_name="sensitivity_analysis_results.csv",
-                                mime="text/csv"
-                            )
-
+                                csv = display_df.to_csv(index=False)
+                                st.download_button(
+                                    label="Download Results",
+                                    data=csv,
+                                    file_name="sensitivity_analysis_results.csv",
+                                    mime="text/csv"
+                                )
+                            except Exception as e:
+                                st.error(f"Error in analysis: {str(e)}")
+            
             # Trajectory Prediction Tab
             with tabs[1]:
                 st.header("Trajectory Prediction")
@@ -479,42 +471,46 @@ def main():
                 
                 with param_col:
                     st.markdown("### Parameters")
-                    with st.container():
-                        min_or = st.slider(
-                            "Minimum Odds Ratio",
-                            1.0, 10.0, 2.0, 0.5,
-                            help="Filter trajectories by minimum odds ratio"
+                    min_or = st.slider(
+                        "Minimum Odds Ratio",
+                        1.0, 10.0, 2.0, 0.5,
+                        help="Filter trajectories by minimum odds ratio",
+                        key="trajectory_min_or"
+                    )
+                    
+                    unique_conditions = sorted(set(data['ConditionA'].unique()) | set(data['ConditionB'].unique()))
+                    selected_conditions = st.multiselect(
+                        "Select Initial Conditions",
+                        unique_conditions,
+                        help="Choose the starting conditions for trajectory analysis",
+                        key="trajectory_conditions"
+                    )
+
+                    if selected_conditions:
+                        max_years = math.ceil(data['MedianDurationYearsWithIQR'].apply(lambda x: parse_iqr(x)[0]).max())
+                        time_horizon = st.slider(
+                            "Time Horizon (years)",
+                            1, max_years, min(5, max_years),
+                            help="Maximum time period to consider",
+                            key="trajectory_time_horizon"
                         )
                         
-                        unique_conditions = sorted(set(data['ConditionA'].unique()) | set(data['ConditionB'].unique()))
-                        selected_conditions = st.multiselect(
-                            "Select Initial Conditions",
-                            unique_conditions,
-                            help="Choose the starting conditions for trajectory analysis"
+                        time_margin = st.slider(
+                            "Time Margin",
+                            0.0, 0.5, 0.1, 0.05,
+                            help="Allowable variation in time predictions",
+                            key="trajectory_time_margin"
                         )
 
-                        if selected_conditions:
-                            max_years = math.ceil(data['MedianDurationYearsWithIQR'].apply(lambda x: parse_iqr(x)[0]).max())
-                            time_horizon = st.slider(
-                                "Time Horizon (years)",
-                                1, max_years, min(5, max_years),
-                                help="Maximum time period to consider"
-                            )
-                            
-                            time_margin = st.slider(
-                                "Time Margin",
-                                0.0, 0.5, 0.1, 0.05,
-                                help="Allowable variation in time predictions"
-                            )
-
-                            generate_button = st.button(
-                                "🔄 Generate Network",
-                                help="Click to generate trajectory network"
-                            )
+                        generate_button = st.button(
+                            "Generate Network",
+                            help="Generate trajectory network",
+                            key="trajectory_generate"
+                        )
 
                 with viz_col:
                     if selected_conditions and generate_button:
-                        with st.spinner("🌐 Generating network..."):
+                        with st.spinner("Generating network..."):
                             try:
                                 html_content = create_network_graph(
                                     data,
@@ -526,7 +522,7 @@ def main():
                                 st.components.v1.html(html_content, height=800)
                                 
                                 st.download_button(
-                                    label="📥 Download Network",
+                                    label="Download Network",
                                     data=html_content,
                                     file_name="trajectory_network.html",
                                     mime="text/html"
@@ -579,7 +575,7 @@ def main():
                         )
                     
                     analyze_button = st.button(
-                        "🔍 Analyze Trajectories",
+                        "Analyze Trajectories",
                         help="Generate personalized trajectory analysis",
                         key="personalized_analyze"
                     )
@@ -599,7 +595,7 @@ def main():
                             st.components.v1.html(html_content, height=800, scrolling=True)
                             
                             st.download_button(
-                                label="📥 Download Analysis",
+                                label="Download Analysis",
                                 data=html_content,
                                 file_name="personalized_trajectory_analysis.html",
                                 mime="text/html"
@@ -634,13 +630,13 @@ def main():
                     )
 
                     analyze_combinations_button = st.button(
-                        "🔍 Analyze Combinations",
+                        "Analyze Combinations",
                         help="Click to analyze condition combinations"
                     )
 
                 with results_col:
                     if analyze_combinations_button:
-                        with st.spinner("🔄 Analyzing combinations..."):
+                        with st.spinner("Analyzing combinations..."):
                             results_df = analyze_condition_combinations(
                                 data,
                                 min_percentage,
@@ -661,7 +657,7 @@ def main():
 
                                 csv = results_df.to_csv(index=False)
                                 st.download_button(
-                                    label="📥 Download Results",
+                                    label="Download Results",
                                     data=csv,
                                     file_name="condition_combinations.csv",
                                     mime="text/csv"
