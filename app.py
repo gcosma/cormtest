@@ -565,6 +565,14 @@ def create_personalized_analysis(data, patient_conditions, time_horizon=None, ti
             font-style: italic;
             color: #666;
         }
+        .progression-arrow {
+            color: #4a5568;
+            font-weight: bold;
+        }
+        .percentage {
+            color: #2d3748;
+            font-weight: bold;
+        }
         @media (max-width: 1200px) {
             .trajectory-table {
                 display: block;
@@ -594,9 +602,7 @@ def create_personalized_analysis(data, patient_conditions, time_horizon=None, ti
             </div>
     """
 
-    # Process each condition
     for condition_a in patient_conditions:
-        # Get data for the current condition
         time_filtered_data = filtered_data[
             (filtered_data['ConditionA'] == condition_a) | 
             (filtered_data['ConditionB'] == condition_a)
@@ -629,17 +635,13 @@ def create_personalized_analysis(data, patient_conditions, time_horizon=None, ti
                     <tbody>
             """
 
-            # Process each related condition
             for _, row in time_filtered_data.sort_values('OddsRatio', ascending=False).iterrows():
-                # Determine the other condition and check precedence
                 if row['ConditionA'] == condition_a:
                     other_condition = row['ConditionB']
-                    precedence = row['Precedence']
-                    directional_percentage = row['DirectionalPercentage']
+                    direction_percentage = row['DirectionalPercentage']
                 else:
                     other_condition = row['ConditionA']
-                    precedence = row['Precedence']
-                    directional_percentage = 100 - row['DirectionalPercentage']
+                    direction_percentage = 100 - row['DirectionalPercentage']
 
                 if other_condition not in patient_conditions:
                     system_b = condition_categories.get(other_condition, 'Other')
@@ -648,13 +650,26 @@ def create_personalized_analysis(data, patient_conditions, time_horizon=None, ti
                     risk_level, color = get_risk_level(row['OddsRatio'])
 
                     # Parse precedence to determine direction
-                    if "precedes" in precedence:
-                        parts = precedence.split(" precedes ")
+                    if "precedes" in row['Precedence']:
+                        parts = row['Precedence'].split(" precedes ")
                         first_condition = parts[0]
                         second_condition = parts[1]
-                        direction = f"{first_condition} → {second_condition}"
+                        direction = f"{first_condition} <span class='progression-arrow'>→</span> {second_condition}"
+                        if first_condition == row['ConditionA']:
+                            percentage = row['DirectionalPercentage']
+                        else:
+                            percentage = 100 - row['DirectionalPercentage']
+                        
+                        progression_text = f"""
+                            {direction}<br>
+                            <span class='percentage'>{percentage:.1f}%</span> of cases follow this pattern
+                        """
                     else:
-                        direction = f"{condition_a} → {other_condition}"
+                        direction = f"{condition_a} <span class='progression-arrow'>→</span> {other_condition}"
+                        progression_text = f"""
+                            {direction}<br>
+                            <span class='percentage'>{direction_percentage:.1f}%</span> of cases follow this pattern
+                        """
 
                     html += f"""
                         <tr>
@@ -672,8 +687,7 @@ def create_personalized_analysis(data, patient_conditions, time_horizon=None, ti
                                 {row['PairFrequency']} cases ({prevalence:.1f}%)
                             </td>
                             <td>
-                                Based on historical patterns:<br>
-                                {direction}
+                                {progression_text}
                             </td>
                         </tr>
                     """
@@ -691,7 +705,7 @@ def create_personalized_analysis(data, patient_conditions, time_horizon=None, ti
                     <li><strong>Risk Level:</strong> Based on odds ratio strength (High: OR≥5, Moderate: OR≥3, Low: OR≥2)</li>
                     <li><strong>Expected Timeline:</strong> Median years and range between which progression typically occurs</li>
                     <li><strong>Statistical Support:</strong> Odds ratio and number of observed cases in the population</li>
-                    <li><strong>Progression Details:</strong> Most common progression pattern based on historical data</li>
+                    <li><strong>Progression Details:</strong> Direction of progression and percentage of cases that follow this pattern</li>
                 </ul>
             </div>
         </div>
@@ -699,7 +713,6 @@ def create_personalized_analysis(data, patient_conditions, time_horizon=None, ti
     """
 
     return html
-
 def main():
     # Initialize session state for data persistence
     if 'sensitivity_results' not in st.session_state:
