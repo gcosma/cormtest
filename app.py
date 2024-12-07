@@ -4,7 +4,7 @@
   "metadata": {
     "colab": {
       "provenance": [],
-      "authorship_tag": "ABX9TyP2StArr/TGawuFA03v0IgI",
+      "authorship_tag": "ABX9TyM+IEzIhBlsHEHuubkHnx7I",
       "include_colab_link": true
     },
     "kernelspec": {
@@ -39,13 +39,15 @@
         "import seaborn as sns\n",
         "from pyvis.network import Network\n",
         "import math\n",
-        "import random\n",
         "import tempfile\n",
-        "import base64\n",
         "from pathlib import Path\n",
         "from matplotlib import patches\n",
         "from itertools import combinations\n",
         "from typing import Tuple, Dict, List\n",
+        "import base64\n",
+        "import json\n",
+        "\n",
+        "plt.style.use('seaborn')\n",
         "\n",
         "# Block 2: Disease Categories and System Colors\n",
         "condition_categories = {\n",
@@ -739,7 +741,10 @@
         "                                st.warning(\"No combinations found matching the criteria.\")\n",
         "\n",
         "if __name__ == \"__main__\":\n",
-        "    main()"
+        "    try:\n",
+        "        main()\n",
+        "    except Exception as e:\n",
+        "        st.error(f\"An error occurred: {str(e)}\")"
       ],
       "metadata": {
         "colab": {
@@ -749,7 +754,7 @@
         "id": "Wokg3cDyuTbU",
         "outputId": "e7062f80-e47d-42b3-d18e-b68ca000aa0f"
       },
-      "execution_count": 9,
+      "execution_count": null,
       "outputs": [
         {
           "output_type": "error",
