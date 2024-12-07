@@ -165,7 +165,7 @@ def perform_sensitivity_analysis(data):
 @st.cache_data
 def create_network_graph(data, patient_conditions, min_or, time_horizon=None, time_margin=None):
     """Create network graph for trajectory visualization with legend"""
-    # Create HTML for the legend
+    # Legend HTML remains the same
     legend_html = """
     <div style="position: absolute; top: 10px; right: 10px; background: white; 
                 padding: 10px; border: 1px solid #ddd; border-radius: 5px; z-index: 1000;">
@@ -201,7 +201,7 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
 
     net = Network(height="800px", width="100%", bgcolor='white', font_color='black', directed=True)
     
-    # Network options
+    # Network options remain the same
     net.set_options("""
     {
         "nodes": {
@@ -258,7 +258,7 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
     active_conditions = set(patient_conditions) | connected_conditions
     active_categories = {condition_categories[cond] for cond in active_conditions if cond in condition_categories}
 
-    # Organize conditions by system
+    # Node positioning logic remains the same
     system_conditions = {}
     for condition in active_conditions:
         category = condition_categories.get(condition, "Other")
@@ -266,7 +266,6 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
             system_conditions[category] = []
         system_conditions[category].append(condition)
 
-    # Calculate layout positions
     angle_step = (2 * math.pi) / len(active_categories)
     radius = 500
     system_centers = {}
@@ -277,7 +276,7 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
         y = radius * math.sin(angle)
         system_centers[category] = (x, y)
 
-    # Add nodes
+    # Add nodes (unchanged)
     for category, conditions in system_conditions.items():
         center_x, center_y = system_centers[category]
         sub_radius = radius / (len(conditions) + 1)
@@ -314,7 +313,7 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
                     fixed=False
                 )
 
-    # Add edges with trajectory information
+    # Modified edge addition to correctly handle precedence
     total_patients = data['TotalPatientsInGroup'].iloc[0]
     for condition_a in patient_conditions:
         relevant_data = filtered_data[filtered_data['ConditionA'] == condition_a]
@@ -328,13 +327,18 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
             if condition_b not in patient_conditions:
                 edge_width = max(1, min(8, math.log2(row['OddsRatio'] + 1)))
                 prevalence = (row['PairFrequency'] / total_patients) * 100
-                directional_percentage = row['DirectionalPercentage']
 
-                if directional_percentage >= 50:
-                    source, target = condition_a, condition_b
+                # Determine direction based on the Precedence field
+                if "precedes" in row['Precedence']:
+                    parts = row['Precedence'].split(" precedes ")
+                    source = parts[0]
+                    target = parts[1]
+                    directional_percentage = row['DirectionalPercentage']
                 else:
-                    source, target = condition_b, condition_a
-                    directional_percentage = 100 - directional_percentage
+                    # Fallback if precedence format is unexpected
+                    source = condition_a
+                    target = condition_b
+                    directional_percentage = row['DirectionalPercentage']
 
                 edge_label = (f"OR: {row['OddsRatio']:.1f}\n"
                             f"Years: {row['MedianDurationYearsWithIQR']}\n"
