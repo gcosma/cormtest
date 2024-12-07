@@ -1,4 +1,11 @@
+# Configure Streamlit page - this must be the first Streamlit command
 import streamlit as st
+st.set_page_config(
+    page_title="Multimorbidity Analysis Tool",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -8,12 +15,6 @@ from pathlib import Path
 import tempfile
 from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
-
-# Configure page
-st.set_page_config(
-    page_title="Disease Trajectory Analysis",
-    layout="wide"
-)
 
 # Disease system categories
 condition_categories = {
@@ -341,13 +342,6 @@ def create_personalized_analysis_html(data, patient_conditions, total_patients, 
     return html
 
 def main():
-    # Page configuration
-    st.set_page_config(
-        page_title="Multimorbidity Analysis Tool",
-        layout="wide",
-        initial_sidebar_state="expanded"
-    )
-
     # Custom CSS
     st.markdown("""
         <style>
@@ -466,11 +460,9 @@ def main():
                                 patterns_df.style.background_gradient(cmap='YlOrRd', subset=['OddsRatio'])
                             )
 
-                            # Visualization
                             fig = create_sensitivity_plot(results)
                             st.pyplot(fig)
 
-                            # Download button
                             csv = display_df.to_csv(index=False)
                             st.download_button(
                                 label="📥 Download Results",
@@ -672,7 +664,7 @@ def main():
                                     label="📥 Download Results",
                                     data=csv,
                                     file_name="condition_combinations.csv",
-                                    mime="text/html"
+                                    mime="text/csv"
                                 )
                             else:
                                 st.warning("No combinations found matching the criteria.")
