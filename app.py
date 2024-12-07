@@ -594,8 +594,14 @@ def create_personalized_analysis(data, patient_conditions, time_horizon=None, ti
             </div>
     """
 
+    # Process each condition
     for condition_a in patient_conditions:
-        time_filtered_data = filtered_data[filtered_data['ConditionA'] == condition_a]
+        # Get data for the current condition
+        time_filtered_data = filtered_data[
+            (filtered_data['ConditionA'] == condition_a) | 
+            (filtered_data['ConditionB'] == condition_a)
+        ]
+        
         if time_horizon and time_margin:
             time_filtered_data = time_filtered_data[
                 time_filtered_data['MedianDurationYearsWithIQR'].apply(
@@ -623,26 +629,38 @@ def create_personalized_analysis(data, patient_conditions, time_horizon=None, ti
                     <tbody>
             """
 
+            # Process each related condition
             for _, row in time_filtered_data.sort_values('OddsRatio', ascending=False).iterrows():
-                condition_b = row['ConditionB']
-                if condition_b not in patient_conditions:
-                    system_b = condition_categories.get(condition_b, 'Other')
+                # Determine the other condition and check precedence
+                if row['ConditionA'] == condition_a:
+                    other_condition = row['ConditionB']
+                    precedence = row['Precedence']
+                    directional_percentage = row['DirectionalPercentage']
+                else:
+                    other_condition = row['ConditionA']
+                    precedence = row['Precedence']
+                    directional_percentage = 100 - row['DirectionalPercentage']
+
+                if other_condition not in patient_conditions:
+                    system_b = condition_categories.get(other_condition, 'Other')
                     median, q1, q3 = parse_iqr(row['MedianDurationYearsWithIQR'])
                     prevalence = (row['PairFrequency'] / total_patients) * 100
                     risk_level, color = get_risk_level(row['OddsRatio'])
 
-                    if row['DirectionalPercentage'] >= 50:
-                        direction = f"{condition_a} → {condition_b}"
-                        confidence = row['DirectionalPercentage']
+                    # Parse precedence to determine direction
+                    if "precedes" in precedence:
+                        parts = precedence.split(" precedes ")
+                        first_condition = parts[0]
+                        second_condition = parts[1]
+                        direction = f"{first_condition} → {second_condition}"
                     else:
-                        direction = f"{condition_b} → {condition_a}"
-                        confidence = 100 - row['DirectionalPercentage']
+                        direction = f"{condition_a} → {other_condition}"
 
                     html += f"""
                         <tr>
                             <td><span class="risk-badge" style="background-color: {color}">{risk_level}</span></td>
                             <td>
-                                <strong>{condition_b}</strong><br>
+                                <strong>{other_condition}</strong><br>
                                 <span class="system-tag">{system_b}</span>
                             </td>
                             <td class="timeline-indicator">
@@ -654,7 +672,7 @@ def create_personalized_analysis(data, patient_conditions, time_horizon=None, ti
                                 {row['PairFrequency']} cases ({prevalence:.1f}%)
                             </td>
                             <td>
-                                {confidence:.1f}% confidence in progression order<br>
+                                Based on historical patterns:<br>
                                 {direction}
                             </td>
                         </tr>
@@ -673,7 +691,7 @@ def create_personalized_analysis(data, patient_conditions, time_horizon=None, ti
                     <li><strong>Risk Level:</strong> Based on odds ratio strength (High: OR≥5, Moderate: OR≥3, Low: OR≥2)</li>
                     <li><strong>Expected Timeline:</strong> Median years and range between which progression typically occurs</li>
                     <li><strong>Statistical Support:</strong> Odds ratio and number of observed cases in the population</li>
-                    <li><strong>Progression Details:</strong> Confidence in the order of disease progression</li>
+                    <li><strong>Progression Details:</strong> Most common progression pattern based on historical data</li>
                 </ul>
             </div>
         </div>
