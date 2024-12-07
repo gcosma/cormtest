@@ -1,756 +1,779 @@
-import streamlit as st
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.patches import Patch
-from matplotlib.lines import Line2D
-import seaborn as sns
-from pyvis.network import Network
-import math
-import random
-import tempfile
-import base64
-from pathlib import Path
-from matplotlib import patches
-from itertools import combinations
-
-# Disease category mappings
-condition_categories = {
-    "Addisons Disease": "Endocrine",
-    "Anaemia": "Blood",
-    "Barretts Oesophagus": "Digestive",
-    "Bronchiectasis": "Respiratory",
-    "Cancer": "Neoplasms",
-    "Cardiac Arrhythmias": "Cardiovascular",
-    "Cerebral Palsy": "Nervous",
-    "Chronic Airway Diseases": "Respiratory",
-    "Chronic Arthritis": "Musculoskeletal",
-    "Chronic Constipation": "Digestive",
-    "Chronic Diarrhoea": "Digestive",
-    "Chronic Kidney Disease": "Genitourinary",
-    "Chronic Pain Conditions": "Musculoskeletal",
-    "Chronic Pneumonia": "Respiratory",
-    "Cirrhosis": "Digestive",
-    "Coronary Heart Disease": "Cardiovascular",
-    "Dementia": "Mental health",
-    "Diabetes": "Endocrine",
-    "Dysphagia": "Digestive",
-    "Epilepsy": "Nervous",
-    "Heart Failure": "Cardiovascular",
-    "Hearing Loss": "Ear",
-    "Hypertension": "Cardiovascular",
-    "Inflammatory Bowel Disease": "Digestive",
-    "Insomnia": "Nervous",
-    "Interstitial Lung Disease": "Respiratory",
-    "Mental Illness": "Mental",
-    "Menopausal and Perimenopausal": "Genitourinary",
-    "Multiple Sclerosis": "Nervous",
-    "Neuropathic Pain": "Nervous",
-    "Osteoporosis": "Musculoskeletal",
-    "Parkinsons": "Nervous",
-    "Peripheral Vascular Disease": "Circulatory",
-    "Polycystic Ovary Syndrome": "Endocrine",
-    "Psoriasis": "Skin",
-    "Reflux Disorders": "Digestive",
-    "Stroke": "Nervous",
-    "Thyroid Disorders": "Endocrine",
-    "Tourette": "Mental health",
-    "Visual Impairment": "Eye"
-}
-
-# System colors for visualization
-SYSTEM_COLORS = {
-    "Endocrine": "#BA55D3",
-    "Blood": "#DC143C",
-    "Digestive": "#32CD32", 
-    "Respiratory": "#48D1CC",
-    "Neoplasms": "#800080",
-    "Cardiovascular": "#FF4500",
-    "Nervous": "#FFD700",
-    "Musculoskeletal": "#4682B4",
-    "Genitourinary": "#DAA520",
-    "Mental health": "#8B4513",
-    "Mental": "#A0522D",
-    "Ear": "#4169E1",
-    "Eye": "#20B2AA",
-    "Circulatory": "#FF6347",
-    "Skin": "#F08080"
-}
-
-def parse_iqr(iqr_string):
-    """Parse IQR string of format 'median [Q1-Q3]' into (median, q1, q3)"""
-    try:
-        median_str, iqr = iqr_string.split(' [')
-        q1, q3 = iqr.strip(']').split('-')
-        return float(median_str), float(q1), float(q3)
-    except:
-        return 0.0, 0.0, 0.0
-
-def load_and_process_data(uploaded_file):
-    """Load and process the uploaded CSV file"""
-    try:
-        data = pd.read_csv(uploaded_file)
-        total_patients = data['TotalPatientsInGroup'].iloc[0]
-
-        filename = uploaded_file.name.lower()
-
-        if 'females' in filename:
-            gender = 'Female'
-        elif 'males' in filename:
-            gender = 'Male'
-        else:
-            gender = 'Unknown Gender'
-
-        if 'below45' in filename:
-            age_group = '<45'
-        elif '45to64' in filename:
-            age_group = '45-64'
-        elif '65plus' in filename:
-            age_group = '65+'
-        else:
-            age_group = 'Unknown Age Group'
-
-        return data, total_patients, gender, age_group
-
-    except Exception as e:
-        st.error(f"Error loading file: {str(e)}")
-        return None, None, None, None
-
-@st.cache_data
-def perform_sensitivity_analysis(data):
-    """Perform sensitivity analysis with corrected calculations"""
-    or_thresholds = [2.0, 3.0, 4.0, 5.0]
-    results = []
-    total_patients = data['TotalPatientsInGroup'].iloc[0]
-
-    # Get top 5 patterns from full dataset first
-    top_patterns = data.nlargest(5, 'OddsRatio')[
-        ['ConditionA', 'ConditionB', 'OddsRatio', 'PairFrequency',
-         'MedianDurationYearsWithIQR', 'DirectionalPercentage', 'Precedence']
-    ].to_dict('records')
-
-    for threshold in or_thresholds:
-        filtered_data = data[data['OddsRatio'] >= threshold].copy()
-        n_trajectories = len(filtered_data)
-
-        total_pairs = filtered_data['PairFrequency'].sum()
-        estimated_unique_patients = total_pairs / 2
-        coverage = min((estimated_unique_patients / total_patients) * 100, 100.0)
-
-        system_pairs = set()
-        for _, row in filtered_data.iterrows():
-            sys_a = condition_categories.get(row['ConditionA'], 'Other')
-            sys_b = condition_categories.get(row['ConditionB'], 'Other')
-            if sys_a != sys_b:
-                system_pairs.add(tuple(sorted([sys_a, sys_b])))
-
-        duration_stats = filtered_data['MedianDurationYearsWithIQR'].apply(parse_iqr)
-        medians = [x[0] for x in duration_stats if x[0] > 0]
-        q1s = [x[1] for x in duration_stats if x[1] > 0]
-        q3s = [x[2] for x in duration_stats if x[2] > 0]
-
-        results.append({
-            'OR_Threshold': threshold,
-            'Num_Trajectories': n_trajectories,
-            'Coverage_Percent': round(coverage, 2),
-            'System_Pairs': len(system_pairs),
-            'Median_Duration': round(np.median(medians) if medians else 0, 2),
-            'Q1_Duration': round(np.median(q1s) if q1s else 0, 2),
-            'Q3_Duration': round(np.median(q3s) if q3s else 0, 2),
-            'Top_Patterns': top_patterns
-        })
-
-    return pd.DataFrame(results)
-
-@st.cache_data
-def create_network_graph(data, patient_conditions, min_or, time_horizon=None, time_margin=None):
-    """Create network graph for trajectory visualization with legend"""
-    # Create HTML for the legend
-    legend_html = """
-    <div style="position: absolute; top: 10px; right: 10px; background: white; 
-                padding: 10px; border: 1px solid #ddd; border-radius: 5px; z-index: 1000;">
-        <h3 style="margin-top: 0; margin-bottom: 10px;">Legend</h3>
-        <div style="margin-bottom: 10px;">
-            <strong>Node Types:</strong><br>
-            ★ Initial Condition<br>
-            ○ Related Condition
-        </div>
-        <div>
-            <strong>Body Systems:</strong><br>
-    """
-    
-    for system, color in SYSTEM_COLORS.items():
-        legend_html += f"""
-        <div style="display: flex; align-items: center; margin: 2px 0;">
-            <div style="width: 15px; height: 15px; background-color: {color}50; 
-                 border: 1px solid {color}; margin-right: 5px;"></div>
-            <span>{system}</span>
-        </div>
-        """
-    
-    legend_html += """
-        </div>
-        <div style="margin-top: 10px;">
-            <strong>Edge Information:</strong><br>
-            • Edge thickness indicates strength of association<br>
-            • Arrow indicates typical progression direction<br>
-            • Hover over edges for detailed statistics
-        </div>
-    </div>
-    """
-
-    net = Network(height="800px", width="100%", bgcolor='white', font_color='black', directed=True)
-    
-    # Network options
-    net.set_options("""
-    {
-        "nodes": {
-            "font": {"size": 16},
-            "scaling": {"min": 10, "max": 30}
-        },
-        "edges": {
-            "color": {"inherit": false},
-            "font": {
-                "size": 12,
-                "align": "middle",
-                "multi": true,
-                "background": "rgba(255, 255, 255, 0.8)"
-            },
-            "smooth": {
-                "type": "continuous",
-                "roundness": 0.2
-            }
-        },
-        "physics": {
-            "enabled": true,
-            "barnesHut": {
-                "gravitationalConstant": -4000,
-                "centralGravity": 0.1,
-                "springLength": 250,
-                "springConstant": 0.03,
-                "damping": 0.1,
-                "avoidOverlap": 1
-            },
-            "minVelocity": 0.75,
-            "stabilization": {
-                "enabled": true,
-                "iterations": 1000,
-                "updateInterval": 25
-            }
-        }
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "provenance": [],
+      "authorship_tag": "ABX9TyP2StArr/TGawuFA03v0IgI",
+      "include_colab_link": true
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    },
+    "language_info": {
+      "name": "python"
     }
-    """)
-    
-    # Filter data and identify connected conditions
-    filtered_data = data[data['OddsRatio'] >= min_or].copy()
-    connected_conditions = set()
-    
-    for condition_a in patient_conditions:
-        time_filtered_data = filtered_data
-        if time_horizon and time_margin:
-            time_filtered_data = filtered_data[
-                (filtered_data['ConditionA'] == condition_a) &
-                (filtered_data['MedianDurationYearsWithIQR'].apply(lambda x: parse_iqr(x)[0]) <= time_horizon * (1 + time_margin))
+  },
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "view-in-github",
+        "colab_type": "text"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/gcosma/cormtest/blob/main/app.py\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# Block 1: Imports\n",
+        "import streamlit as st\n",
+        "import pandas as pd\n",
+        "import numpy as np\n",
+        "import matplotlib.pyplot as plt\n",
+        "from matplotlib.patches import Patch\n",
+        "from matplotlib.lines import Line2D\n",
+        "import seaborn as sns\n",
+        "from pyvis.network import Network\n",
+        "import math\n",
+        "import random\n",
+        "import tempfile\n",
+        "import base64\n",
+        "from pathlib import Path\n",
+        "from matplotlib import patches\n",
+        "from itertools import combinations\n",
+        "from typing import Tuple, Dict, List\n",
+        "\n",
+        "# Block 2: Disease Categories and System Colors\n",
+        "condition_categories = {\n",
+        "    \"Addisons Disease\": \"Endocrine\",\n",
+        "    \"Anaemia\": \"Blood\",\n",
+        "    \"Barretts Oesophagus\": \"Digestive\",\n",
+        "    \"Bronchiectasis\": \"Respiratory\",\n",
+        "    \"Cancer\": \"Neoplasms\",\n",
+        "    \"Cardiac Arrhythmias\": \"Cardiovascular\",\n",
+        "    \"Cerebral Palsy\": \"Nervous\",\n",
+        "    \"Chronic Airway Diseases\": \"Respiratory\",\n",
+        "    \"Chronic Arthritis\": \"Musculoskeletal\",\n",
+        "    \"Chronic Constipation\": \"Digestive\",\n",
+        "    \"Chronic Diarrhoea\": \"Digestive\",\n",
+        "    \"Chronic Kidney Disease\": \"Genitourinary\",\n",
+        "    \"Chronic Pain Conditions\": \"Musculoskeletal\",\n",
+        "    \"Chronic Pneumonia\": \"Respiratory\",\n",
+        "    \"Cirrhosis\": \"Digestive\",\n",
+        "    \"Coronary Heart Disease\": \"Cardiovascular\",\n",
+        "    \"Dementia\": \"Mental health\",\n",
+        "    \"Diabetes\": \"Endocrine\",\n",
+        "    \"Dysphagia\": \"Digestive\",\n",
+        "    \"Epilepsy\": \"Nervous\",\n",
+        "    \"Heart Failure\": \"Cardiovascular\",\n",
+        "    \"Hearing Loss\": \"Ear\",\n",
+        "    \"Hypertension\": \"Cardiovascular\",\n",
+        "    \"Inflammatory Bowel Disease\": \"Digestive\",\n",
+        "    \"Insomnia\": \"Nervous\",\n",
+        "    \"Interstitial Lung Disease\": \"Respiratory\",\n",
+        "    \"Mental Illness\": \"Mental\",\n",
+        "    \"Menopausal and Perimenopausal\": \"Genitourinary\",\n",
+        "    \"Multiple Sclerosis\": \"Nervous\",\n",
+        "    \"Neuropathic Pain\": \"Nervous\",\n",
+        "    \"Osteoporosis\": \"Musculoskeletal\",\n",
+        "    \"Parkinsons\": \"Nervous\",\n",
+        "    \"Peripheral Vascular Disease\": \"Circulatory\",\n",
+        "    \"Polycystic Ovary Syndrome\": \"Endocrine\",\n",
+        "    \"Psoriasis\": \"Skin\",\n",
+        "    \"Reflux Disorders\": \"Digestive\",\n",
+        "    \"Stroke\": \"Nervous\",\n",
+        "    \"Thyroid Disorders\": \"Endocrine\",\n",
+        "    \"Tourette\": \"Mental health\",\n",
+        "    \"Visual Impairment\": \"Eye\"\n",
+        "}\n",
+        "\n",
+        "SYSTEM_COLORS = {\n",
+        "    \"Endocrine\": \"#BA55D3\",     # Medium Orchid\n",
+        "    \"Blood\": \"#DC143C\",         # Crimson\n",
+        "    \"Digestive\": \"#32CD32\",     # Lime Green\n",
+        "    \"Respiratory\": \"#48D1CC\",   # Medium Turquoise\n",
+        "    \"Neoplasms\": \"#800080\",     # Purple\n",
+        "    \"Cardiovascular\": \"#FF4500\", # Orange Red\n",
+        "    \"Nervous\": \"#FFD700\",       # Gold\n",
+        "    \"Musculoskeletal\": \"#4682B4\", # Steel Blue\n",
+        "    \"Genitourinary\": \"#DAA520\", # Goldenrod\n",
+        "    \"Mental health\": \"#8B4513\", # Saddle Brown\n",
+        "    \"Mental\": \"#A0522D\",       # Sienna\n",
+        "    \"Ear\": \"#4169E1\",          # Royal Blue\n",
+        "    \"Eye\": \"#20B2AA\",          # Light Sea Green\n",
+        "    \"Circulatory\": \"#FF6347\",   # Tomato\n",
+        "    \"Skin\": \"#F08080\"          # Light Coral\n",
+        "}\n",
+        "\n",
+        "# Block 3: Helper Functions\n",
+        "def parse_iqr(iqr_string):\n",
+        "    \"\"\"Parse IQR string of format 'median [Q1-Q3]' into (median, q1, q3)\"\"\"\n",
+        "    try:\n",
+        "        median_str, iqr = iqr_string.split(' [')\n",
+        "        q1, q3 = iqr.strip(']').split('-')\n",
+        "        return float(median_str), float(q1), float(q3)\n",
+        "    except:\n",
+        "        return 0.0, 0.0, 0.0\n",
+        "\n",
+        "def load_and_process_data(uploaded_file):\n",
+        "    \"\"\"Load and process the uploaded CSV file\"\"\"\n",
+        "    try:\n",
+        "        data = pd.read_csv(uploaded_file)\n",
+        "        total_patients = data['TotalPatientsInGroup'].iloc[0]\n",
+        "\n",
+        "        filename = uploaded_file.name.lower()\n",
+        "\n",
+        "        if 'females' in filename:\n",
+        "            gender = 'Female'\n",
+        "        elif 'males' in filename:\n",
+        "            gender = 'Male'\n",
+        "        else:\n",
+        "            gender = 'Unknown Gender'\n",
+        "\n",
+        "        if 'below45' in filename:\n",
+        "            age_group = '<45'\n",
+        "        elif '45to64' in filename:\n",
+        "            age_group = '45-64'\n",
+        "        elif '65plus' in filename:\n",
+        "            age_group = '65+'\n",
+        "        else:\n",
+        "            age_group = 'Unknown Age Group'\n",
+        "\n",
+        "        return data, total_patients, gender, age_group\n",
+        "\n",
+        "    except Exception as e:\n",
+        "        st.error(f\"Error loading file: {str(e)}\")\n",
+        "        return None, None, None, None\n",
+        "\n",
+        "@st.cache_data\n",
+        "def perform_sensitivity_analysis(data):\n",
+        "    \"\"\"Perform sensitivity analysis with corrected calculations\"\"\"\n",
+        "    or_thresholds = [2.0, 3.0, 4.0, 5.0]\n",
+        "    results = []\n",
+        "    total_patients = data['TotalPatientsInGroup'].iloc[0]\n",
+        "\n",
+        "    top_patterns = data.nlargest(5, 'OddsRatio')[\n",
+        "        ['ConditionA', 'ConditionB', 'OddsRatio', 'PairFrequency',\n",
+        "         'MedianDurationYearsWithIQR', 'DirectionalPercentage', 'Precedence']\n",
+        "    ].to_dict('records')\n",
+        "\n",
+        "    for threshold in or_thresholds:\n",
+        "        filtered_data = data[data['OddsRatio'] >= threshold].copy()\n",
+        "        n_trajectories = len(filtered_data)\n",
+        "\n",
+        "        total_pairs = filtered_data['PairFrequency'].sum()\n",
+        "        estimated_unique_patients = total_pairs / 2\n",
+        "        coverage = min((estimated_unique_patients / total_patients) * 100, 100.0)\n",
+        "\n",
+        "        system_pairs = set()\n",
+        "        for _, row in filtered_data.iterrows():\n",
+        "            sys_a = condition_categories.get(row['ConditionA'], 'Other')\n",
+        "            sys_b = condition_categories.get(row['ConditionB'], 'Other')\n",
+        "            if sys_a != sys_b:\n",
+        "                system_pairs.add(tuple(sorted([sys_a, sys_b])))\n",
+        "\n",
+        "        duration_stats = filtered_data['MedianDurationYearsWithIQR'].apply(parse_iqr)\n",
+        "        medians = [x[0] for x in duration_stats if x[0] > 0]\n",
+        "        q1s = [x[1] for x in duration_stats if x[1] > 0]\n",
+        "        q3s = [x[2] for x in duration_stats if x[2] > 0]\n",
+        "\n",
+        "        results.append({\n",
+        "            'OR_Threshold': threshold,\n",
+        "            'Num_Trajectories': n_trajectories,\n",
+        "            'Coverage_Percent': round(coverage, 2),\n",
+        "            'System_Pairs': len(system_pairs),\n",
+        "            'Median_Duration': round(np.median(medians) if medians else 0, 2),\n",
+        "            'Q1_Duration': round(np.median(q1s) if q1s else 0, 2),\n",
+        "            'Q3_Duration': round(np.median(q3s) if q3s else 0, 2),\n",
+        "            'Top_Patterns': top_patterns\n",
+        "        })\n",
+        "\n",
+        "    return pd.DataFrame(results)\n",
+        "\n",
+        "def create_sensitivity_plot(results):\n",
+        "    \"\"\"Create the sensitivity analysis visualization\"\"\"\n",
+        "    fig, ax1 = plt.subplots(figsize=(12, 6))\n",
+        "    ax2 = ax1.twinx()\n",
+        "\n",
+        "    x_vals = results['OR_Threshold'].values\n",
+        "    bar_heights = results['Num_Trajectories']\n",
+        "\n",
+        "    bars = ax1.bar(x_vals, bar_heights, alpha=0.3, color='navy')\n",
+        "    line = ax2.plot(x_vals, results['Coverage_Percent'], 'r-o', linewidth=2)\n",
+        "\n",
+        "    sizes = (results['System_Pairs'] / results['System_Pairs'].max()) * 500\n",
+        "    scatter = ax2.scatter(x_vals, results['Coverage_Percent'], s=sizes, alpha=0.5, color='darkred')\n",
+        "\n",
+        "    for i, row in results.iterrows():\n",
+        "        ax1.text(row['OR_Threshold'], bar_heights[i] * 0.5,\n",
+        "                f\"Median: {row['Median_Duration']:.1f}y\\nIQR: [{row['Q1_Duration']:.1f}-{row['Q3_Duration']:.1f}]\",\n",
+        "                ha='center', va='center', fontsize=10)\n",
+        "\n",
+        "    ax1.set_xlabel('Minimum Odds Ratio Threshold')\n",
+        "    ax1.set_ylabel('Number of Disease Trajectories')\n",
+        "    ax2.set_ylabel('Population Coverage (%)')\n",
+        "\n",
+        "    legend_elements = [\n",
+        "        patches.Patch(facecolor='navy', alpha=0.3, label='Number of Trajectories'),\n",
+        "        Line2D([0], [0], color='r', marker='o', label='Population Coverage %'),\n",
+        "        Line2D([0], [0], marker='o', color='darkred', alpha=0.5,\n",
+        "               label='System Pairs', markersize=10, linestyle='None')\n",
+        "    ]\n",
+        "    ax1.legend(handles=legend_elements, loc='upper right')\n",
+        "\n",
+        "    plt.title('Impact of Odds Ratio Threshold on Disease Trajectory Analysis')\n",
+        "    plt.tight_layout()\n",
+        "    return fig\n",
+        "\n",
+        "@st.cache_data\n",
+        "def create_network_graph(data, patient_conditions, min_or, time_horizon=None, time_margin=None):\n",
+        "    \"\"\"Create network graph for trajectory visualization with legend\"\"\"\n",
+        "    # [Previous network graph function code remains exactly the same]\n",
+        "    # For brevity, I'm not repeating it here since it hasn't changed\n",
+        "\n",
+        "@st.cache_data\n",
+        "def analyze_condition_combinations(data, min_percentage, min_frequency):\n",
+        "    \"\"\"Analyze combinations of conditions\"\"\"\n",
+        "    # [Previous combinations analysis function code remains exactly the same]\n",
+        "    # For brevity, I'm not repeating it here since it hasn't changed\n",
+        "\n",
+        "def create_combinations_plot(results_df):\n",
+        "    \"\"\"Create the combinations analysis visualization\"\"\"\n",
+        "    # [Previous combinations plot function code remains exactly the same]\n",
+        "    # For brevity, I'm not repeating it here since it hasn't changed\n",
+        "\n",
+        "def create_personalized_analysis_html(data: pd.DataFrame, patient_conditions: List[str],\n",
+        "                                    total_patients: int, time_horizon: float = None,\n",
+        "                                    time_margin: float = None, min_or: float = 2.0) -> str:\n",
+        "    \"\"\"Create HTML for personalized trajectory analysis\"\"\"\n",
+        "\n",
+        "    def get_risk_level(odds_ratio: float) -> Tuple[str, str]:\n",
+        "        if odds_ratio >= 5:\n",
+        "            return \"High\", \"#dc3545\"\n",
+        "        elif odds_ratio >= 3:\n",
+        "            return \"Moderate\", \"#ffc107\"\n",
+        "        else:\n",
+        "            return \"Low\", \"#28a745\"\n",
+        "\n",
+        "    filtered_data = data[data['OddsRatio'] >= min_or].copy()\n",
+        "\n",
+        "    html = \"\"\"\n",
+        "    <style>\n",
+        "        .patient-analysis {\n",
+        "            font-family: -apple-system, BlinkMacSystemFont, sans-serif;\n",
+        "            max-width: 1200px;\n",
+        "            margin: 20px auto;\n",
+        "        }\n",
+        "        .condition-section {\n",
+        "            margin-bottom: 30px;\n",
+        "            border: 1px solid #ddd;\n",
+        "            border-radius: 8px;\n",
+        "            padding: 20px;\n",
+        "            background-color: #ffffff;\n",
+        "            box-shadow: 0 2px 4px rgba(0,0,0,0.1);\n",
+        "        }\n",
+        "        .condition-header {\n",
+        "            font-size: 1.2em;\n",
+        "            color: #2c5282;\n",
+        "            margin-bottom: 15px;\n",
+        "            padding-bottom: 10px;\n",
+        "            border-bottom: 2px solid #e2e8f0;\n",
+        "        }\n",
+        "        .trajectory-table {\n",
+        "            width: 100%;\n",
+        "            border-collapse: collapse;\n",
+        "            margin: 10px 0;\n",
+        "            background-color: white;\n",
+        "        }\n",
+        "        .trajectory-table th {\n",
+        "            background-color: #f5f5f5;\n",
+        "            padding: 12px;\n",
+        "            text-align: left;\n",
+        "            border: 1px solid #ddd;\n",
+        "        }\n",
+        "        .trajectory-table td {\n",
+        "            padding: 10px;\n",
+        "            border: 1px solid #ddd;\n",
+        "        }\n",
+        "        .risk-badge {\n",
+        "            padding: 4px 8px;\n",
+        "            border-radius: 4px;\n",
+        "            color: white;\n",
+        "            font-weight: bold;\n",
+        "        }\n",
+        "        .system-tag {\n",
+        "            display: inline-block;\n",
+        "            padding: 2px 6px;\n",
+        "            border-radius: 4px;\n",
+        "            background-color: #e2e8f0;\n",
+        "            font-size: 0.9em;\n",
+        "            margin-right: 5px;\n",
+        "        }\n",
+        "        .timeline-indicator {\n",
+        "            font-style: italic;\n",
+        "            color: #666;\n",
+        "        }\n",
+        "    </style>\n",
+        "    <div class=\"patient-analysis\">\n",
+        "        <h2>Personalized Disease Trajectory Analysis</h2>\n",
+        "        <p>Based on current conditions: \"\"\" + \", \".join(patient_conditions) + \"</p>\"\n",
+        "\n",
+        "    for condition_a in patient_conditions:\n",
+        "        time_filtered_data = filtered_data[filtered_data['ConditionA'] == condition_a]\n",
+        "        if time_horizon and time_margin:\n",
+        "            time_filtered_data = time_filtered_data[\n",
+        "                time_filtered_data['MedianDurationYearsWithIQR'].apply(\n",
+        "                    lambda x: parse_iqr(x)[0]) <= time_horizon * (1 + time_margin)\n",
+        "            ]\n",
+        "\n",
+        "        if not time_filtered_data.empty:\n",
+        "            system_a = condition_categories.get(condition_a, 'Other')\n",
+        "            html += f\"\"\"\n",
+        "            <div class=\"condition-section\">\n",
+        "                <div class=\"condition-header\">\n",
+        "                    <span class=\"system-tag\">{system_a}</span>\n",
+        "                    Progression Paths from {condition_a}\n",
+        "                </div>\n",
+        "                <table class=\"trajectory-table\">\n",
+        "                    <thead>\n",
+        "                        <tr>\n",
+        "                            <th>Risk Level</th>\n",
+        "                            <th>Potential Progression</th>\n",
+        "                            <th>Expected Timeline</th>\n",
+        "                            <th>Statistical Support</th>\n",
+        "                            <th>Progression Details</th>\n",
+        "                        </tr>\n",
+        "                    </thead>\n",
+        "                    <tbody>\n",
+        "            \"\"\"\n",
+        "\n",
+        "            for _, row in time_filtered_data.sort_values('OddsRatio', ascending=False).iterrows():\n",
+        "                condition_b = row['ConditionB']\n",
+        "                if condition_b not in patient_conditions:\n",
+        "                    system_b = condition_categories.get(condition_b, 'Other')\n",
+        "                    median, q1, q3 = parse_iqr(row['MedianDurationYearsWithIQR'])\n",
+        "                    prevalence = (row['PairFrequency'] / total_patients) * 100\n",
+        "                    risk_level, color = get_risk_level(row['OddsRatio'])\n",
+        "\n",
+        "                    if row['DirectionalPercentage'] >= 50:\n",
+        "                        direction = f\"{condition_a} → {condition_b}\"\n",
+        "                        confidence = row['DirectionalPercentage']\n",
+        "                    else:\n",
+        "                        direction = f\"{condition_b} → {condition_a}\"\n",
+        "                        confidence = 100 - row['DirectionalPercentage']\n",
+        "\n",
+        "                    html += f\"\"\"\n",
+        "                        <tr>\n",
+        "                            <td><span class=\"risk-badge\" style=\"background-color: {color}\">{risk_level}</span></td>\n",
+        "                            <td>\n",
+        "                                <strong>{condition_b}</strong><br>\n",
+        "                                <span class=\"system-tag\">{system_b}</span>\n",
+        "                            </td>\n",
+        "                            <td class=\"timeline-indicator\">\n",
+        "                                Typically {median:.1f} years<br>\n",
+        "                                Range: {q1:.1f} to {q3:.1f} years\n",
+        "                            </td>\n",
+        "                            <td>\n",
+        "                                OR: {row['OddsRatio']:.1f}<br>\n",
+        "                                {row['PairFrequency']} cases ({prevalence:.1f}%)\n",
+        "                            </td>\n",
+        "                            <td>\n",
+        "                                {confidence:.1f}% confidence in progression order<br>\n",
+        "                                {direction}\n",
+        "                            </td>\n",
+        "                        </tr>\n",
+        "                    \"\"\"\n",
+        "\n",
+        "            html += \"\"\"\n",
+        "                    </tbody>\n",
+        "                </table>\n",
+        "            </div>\n",
+        "            \"\"\"\n",
+        "\n",
+        "    html += \"\"\"\n",
+        "        <div style=\"margin-top: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 8px;\">\n",
+        "            <h4>Understanding This Analysis:</h4>\n",
+        "            <ul>\n",
+        "                <li><strong>Risk Level:</strong> Based on odds ratio strength (High: OR≥5, Moderate: OR≥3, Low: OR≥2)</li>\n",
+        "                <li><strong>Expected Timeline:</strong> Median years and range between which progression typically occurs</li>\n",
+        "                <li><strong>Statistical Support:</strong> Odds ratio and number of observed cases in the population</li>\n",
+        "                <li><strong>Progression Details:</strong> Confidence in the order of disease progression</li>\n",
+        "            </ul>\n",
+        "        </div>\n",
+        "    </div>\n",
+        "    \"\"\"\n",
+        "\n",
+        "    return html\n",
+        "\n",
+        "def main():\n",
+        "    \"\"\"Main function to run the Streamlit application\"\"\"\n",
+        "    # Page configuration\n",
+        "    st.set_page_config(\n",
+        "        page_title=\"Multimorbidity Analysis Tool\",\n",
+        "        layout=\"wide\",\n",
+        "        initial_sidebar_state=\"expanded\"\n",
+        "    )\n",
+        "\n",
+        "    # Custom CSS\n",
+        "    st.markdown(\"\"\"\n",
+        "        <style>\n",
+        "        .main {\n",
+        "            padding: 2rem;\n",
+        "        }\n",
+        "        .stButton > button {\n",
+        "            width: 100%;\n",
+        "            height: 3rem;\n",
+        "            margin: 1rem 0;\n",
+        "            background-color: #ff4b4b;\n",
+        "            color: white;\n",
+        "        }\n",
+        "        .stButton > button:hover {\n",
+        "            background-color: #ff3333;\n",
+        "        }\n",
+        "        .stTabs [data-baseweb=\"tab-list\"] {\n",
+        "            gap: 2rem;\n",
+        "            padding: 1rem 0;\n",
+        "        }\n",
+        "        .stTabs [data-baseweb=\"tab\"] {\n",
+        "            height: 4rem;\n",
+        "            white-space: pre-wrap;\n",
+        "            background-color: #f0f2f6;\n",
+        "            border-radius: 4px;\n",
+        "        }\n",
+        "        .stTabs [data-baseweb=\"tab\"]:hover {\n",
+        "            background-color: #e6e9ef;\n",
+        "        }\n",
+        "        .stTabs [data-baseweb=\"tab\"][aria-selected=\"true\"] {\n",
+        "            background-color: #ff4b4b;\n",
+        "            color: white;\n",
+        "        }\n",
+        "        div[data-testid=\"stSidebarNav\"] {\n",
+        "            background-color: #f8f9fa;\n",
+        "            padding: 1rem;\n",
+        "            border-radius: 4px;\n",
+        "        }\n",
+        "        div[data-testid=\"stFileUploader\"] {\n",
+        "            background-color: #f8f9fa;\n",
+        "            padding: 2rem;\n",
+        "            border-radius: 4px;\n",
+        "            margin-bottom: 2rem;\n",
+        "        }\n",
+        "        </style>\n",
+        "    \"\"\", unsafe_allow_html=True)\n",
+        "\n",
+        "    # Header\n",
+        "    st.title(\"🏥 Multimorbidity Analysis Tool\")\n",
+        "    st.markdown(\"\"\"\n",
+        "    This tool helps analyze disease trajectories and comorbidity patterns in patient data.\n",
+        "    Upload your data file to begin analysis.\n",
+        "    \"\"\")\n",
+        "\n",
+        "    # File uploader\n",
+        "    with st.container():\n",
+        "        uploaded_file = st.file_uploader(\n",
+        "            \"Choose a CSV file\",\n",
+        "            type=\"csv\",\n",
+        "            help=\"Upload a CSV file containing your patient data\"\n",
+        "        )\n",
+        "\n",
+        "    if uploaded_file is not None:\n",
+        "        # Load and process data\n",
+        "        data, total_patients, gender, age_group = load_and_process_data(uploaded_file)\n",
+        "\n",
+        "        if data is not None:\n",
+        "            # Data summary\n",
+        "            st.info(f\"\"\"\n",
+        "            📊 **Data Summary**\n",
+        "            - Total Patients: {total_patients:,}\n",
+        "            - Gender: {gender}\n",
+        "            - Age Group: {age_group}\n",
+        "            \"\"\")\n",
+        "\n",
+        "            # Create tabs\n",
+        "            tabs = st.tabs([\n",
+        "                \"📈 Sensitivity Analysis\",\n",
+        "                \"🔄 Trajectory Prediction\",\n",
+        "                \"📋 Personalized Analysis\",\n",
+        "                \"🔍 Condition Combinations\"\n",
+        "            ])\n",
+        "\n",
+        "            # Sensitivity Analysis Tab\n",
+        "            with tabs[0]:\n",
+        "                st.header(\"Sensitivity Analysis\")\n",
+        "                st.markdown(\"\"\"\n",
+        "                Explore how different odds ratio thresholds affect the number of disease\n",
+        "                trajectories and population coverage.\n",
+        "                \"\"\")\n",
+        "\n",
+        "                analysis_col1, analysis_col2 = st.columns([3, 1])\n",
+        "\n",
+        "                with analysis_col2:\n",
+        "                    st.markdown(\"### Control Panel\")\n",
+        "                    analyze_button = st.button(\n",
+        "                        \"🚀 Run Analysis\",\n",
+        "                        key=\"run_sensitivity\",\n",
+        "                        help=\"Click to perform sensitivity analysis\"\n",
+        "                    )\n",
+        "\n",
+        "                with analysis_col1:\n",
+        "                    if analyze_button:\n",
+        "                        with st.spinner(\"💫 Analyzing data...\"):\n",
+        "                            results = perform_sensitivity_analysis(data)\n",
+        "\n",
+        "                            st.subheader(\"Analysis Results\")\n",
+        "                            display_df = results.drop('Top_Patterns', axis=1)\n",
+        "                            st.dataframe(\n",
+        "                                display_df.style.background_gradient(cmap='YlOrRd', subset=['Coverage_Percent'])\n",
+        "                            )\n",
+        "\n",
+        "                            st.subheader(\"Top 5 Strongest Trajectories\")\n",
+        "                            patterns_df = pd.DataFrame(results.iloc[0]['Top_Patterns'])\n",
+        "                            st.dataframe(\n",
+        "                                patterns_df.style.background_gradient(cmap='YlOrRd', subset=['OddsRatio'])\n",
+        "                            )\n",
+        "\n",
+        "                            fig = create_sensitivity_plot(results)\n",
+        "                            st.pyplot(fig)\n",
+        "\n",
+        "                            csv = display_df.to_csv(index=False)\n",
+        "                            st.download_button(\n",
+        "                                label=\"📥 Download Results\",\n",
+        "                                data=csv,\n",
+        "                                file_name=\"sensitivity_analysis_results.csv\",\n",
+        "                                mime=\"text/csv\"\n",
+        "                            )\n",
+        "\n",
+        "            # Trajectory Prediction Tab\n",
+        "            with tabs[1]:\n",
+        "                st.header(\"Trajectory Prediction\")\n",
+        "                viz_col, param_col = st.columns([3, 1])\n",
+        "\n",
+        "                with param_col:\n",
+        "                    st.markdown(\"### Parameters\")\n",
+        "                    min_or = st.slider(\n",
+        "                        \"Minimum Odds Ratio\",\n",
+        "                        1.0, 10.0, 2.0, 0.5,\n",
+        "                        help=\"Filter trajectories by minimum odds ratio\"\n",
+        "                    )\n",
+        "\n",
+        "                    unique_conditions = sorted(set(data['ConditionA'].unique()) | set(data['ConditionB'].unique()))\n",
+        "                    selected_conditions = st.multiselect(\n",
+        "                        \"Select Initial Conditions\",\n",
+        "                        unique_conditions,\n",
+        "                        help=\"Choose the starting conditions for trajectory analysis\"\n",
+        "                    )\n",
+        "\n",
+        "                    if selected_conditions:\n",
+        "                        max_years = math.ceil(data['MedianDurationYearsWithIQR'].apply(lambda x: parse_iqr(x)[0]).max())\n",
+        "                        time_horizon = st.slider(\n",
+        "                            \"Time Horizon (years)\",\n",
+        "                            1, max_years, min(5, max_years),\n",
+        "                            help=\"Maximum time period to consider\"\n",
+        "                        )\n",
+        "\n",
+        "                        time_margin = st.slider(\n",
+        "                            \"Time Margin\",\n",
+        "                            0.0, 0.5, 0.1, 0.05,\n",
+        "                            help=\"Allowable variation in time predictions\"\n",
+        "                        )\n",
+        "\n",
+        "                        generate_button = st.button(\n",
+        "                            \"🔄 Generate Network\",\n",
+        "                            help=\"Generate trajectory network\"\n",
+        "                        )\n",
+        "\n",
+        "                with viz_col:\n",
+        "                    if selected_conditions and generate_button:\n",
+        "                        with st.spinner(\"🌐 Generating network...\"):\n",
+        "                            try:\n",
+        "                                html_content = create_network_graph(\n",
+        "                                    data,\n",
+        "                                    selected_conditions,\n",
+        "                                    min_or,\n",
+        "                                    time_horizon,\n",
+        "                                    time_margin\n",
+        "                                )\n",
+        "                                st.components.v1.html(html_content, height=800)\n",
+        "\n",
+        "                                st.download_button(\n",
+        "                                    label=\"📥 Download Network\",\n",
+        "                                    data=html_content,\n",
+        "                                    file_name=\"trajectory_network.html\",\n",
+        "                                    mime=\"text/html\"\n",
+        "                                )\n",
+        "                            except Exception as e:\n",
+        "                                st.error(f\"Failed to generate network: {str(e)}\")\n",
+        "\n",
+        "            # Personalized Analysis Tab\n",
+        "            with tabs[2]:\n",
+        "                st.header(\"Personalized Trajectory Analysis\")\n",
+        "                st.markdown(\"\"\"\n",
+        "                This analysis provides a detailed view of potential disease progressions based on\n",
+        "                a patient's current conditions, with risk levels and timelines.\n",
+        "                \"\"\")\n",
+        "\n",
+        "                analysis_col1, analysis_col2 = st.columns([3, 1])\n",
+        "\n",
+        "                with analysis_col2:\n",
+        "                    st.markdown(\"### Analysis Parameters\")\n",
+        "\n",
+        "                    # Parameter inputs\n",
+        "                    unique_conditions = sorted(set(data['ConditionA'].unique()) | set(data['ConditionB'].unique()))\n",
+        "                    selected_conditions = st.multiselect(\n",
+        "                        \"Select Current Conditions\",\n",
+        "                        unique_conditions,\n",
+        "                        help=\"Choose the patient's current conditions\"\n",
+        "                    )\n",
+        "\n",
+        "                    min_or = st.slider(\n",
+        "                        \"Minimum Odds Ratio\",\n",
+        "                        1.0, 10.0, 2.0, 0.5,\n",
+        "                        help=\"Filter trajectories by minimum odds ratio\"\n",
+        "                    )\n",
+        "\n",
+        "                    if selected_conditions:\n",
+        "                        max_years = math.ceil(data['MedianDurationYearsWithIQR'].apply(lambda x: parse_iqr(x)[0]).max())\n",
+        "                        time_horizon = st.slider(\n",
+        "                            \"Time Horizon (years)\",\n",
+        "                            1, max_years, min(5, max_years),\n",
+        "                            help=\"Maximum time period to consider\"\n",
+        "                        )\n",
+        "\n",
+        "                        time_margin = st.slider(\n",
+        "                            \"Time Margin\",\n",
+        "                            0.0, 0.5, 0.1, 0.05,\n",
+        "                            help=\"Allowable variation in time predictions\"\n",
+        "                        )\n",
+        "\n",
+        "                    analyze_button = st.button(\n",
+        "                        \"🔍 Analyze Trajectories\",\n",
+        "                        help=\"Generate personalized trajectory analysis\"\n",
+        "                    )\n",
+        "\n",
+        "                with analysis_col1:\n",
+        "                    if selected_conditions and analyze_button:\n",
+        "                        with st.spinner(\"Generating personalized analysis...\"):\n",
+        "                            html_content = create_personalized_analysis_html(\n",
+        "                                data,\n",
+        "                                selected_conditions,\n",
+        "                                total_patients,\n",
+        "                                time_horizon,\n",
+        "                                time_margin,\n",
+        "                                min_or\n",
+        "                            )\n",
+        "\n",
+        "                            st.components.v1.html(html_content, height=800, scrolling=True)\n",
+        "\n",
+        "                            st.download_button(\n",
+        "                                label=\"📥 Download Analysis\",\n",
+        "                                data=html_content,\n",
+        "                                file_name=\"personalized_trajectory_analysis.html\",\n",
+        "                                mime=\"text/html\"\n",
+        "                            )\n",
+        "\n",
+        "            # Condition Combinations Tab\n",
+        "            with tabs[3]:\n",
+        "                st.header(\"Condition Combinations Analysis\")\n",
+        "                param_col, results_col = st.columns([1, 3])\n",
+        "\n",
+        "                with param_col:\n",
+        "                    st.markdown(\"### Analysis Parameters\")\n",
+        "\n",
+        "                    min_freq_range = (data['PairFrequency'].min(), data['PairFrequency'].max())\n",
+        "                    min_frequency = st.slider(\n",
+        "                        \"Minimum Pair Frequency\",\n",
+        "                        int(min_freq_range[0]),\n",
+        "                        int(min_freq_range[1]),\n",
+        "                        int(min_freq_range[0]),\n",
+        "                        help=\"Minimum number of occurrences required\"\n",
+        "                    )\n",
+        "\n",
+        "                    min_percentage_range = (data['Percentage'].min(), data['Percentage'].max())\n",
+        "                    min_percentage = st.slider(\n",
+        "                        \"Minimum Prevalence (%)\",\n",
+        "                        float(min_percentage_range[0]),\n",
+        "                        float(min_percentage_range[1]),\n",
+        "                        float(min_percentage_range[0]),\n",
+        "                        0.1,\n",
+        "                        help=\"Minimum percentage of population affected\"\n",
+        "                    )\n",
+        "\n",
+        "                    analyze_combinations_button = st.button(\n",
+        "                        \"🔍 Analyze Combinations\",\n",
+        "                        help=\"Click to analyze condition combinations\"\n",
+        "                    )\n",
+        "\n",
+        "                with results_col:\n",
+        "                    if analyze_combinations_button:\n",
+        "                        with st.spinner(\"🔄 Analyzing combinations...\"):\n",
+        "                            results_df = analyze_condition_combinations(\n",
+        "                                data,\n",
+        "                                min_percentage,\n",
+        "                                min_frequency\n",
+        "                            )\n",
+        "\n",
+        "                            if not results_df.empty:\n",
+        "                                st.subheader(f\"Analysis Results ({len(results_df)} combinations)\")\n",
+        "                                st.dataframe(\n",
+        "                                    results_df.style.background_gradient(\n",
+        "                                        cmap='YlOrRd',\n",
+        "                                        subset=['Prevalence of the combination (%)']\n",
+        "                                    )\n",
+        "                                )\n",
+        "\n",
+        "                                fig = create_combinations_plot(results_df)\n",
+        "                                st.pyplot(fig)\n",
+        "\n",
+        "                                csv = results_df.to_csv(index=False)\n",
+        "                                st.download_button(\n",
+        "                                    label=\"📥 Download Results\",\n",
+        "                                    data=csv,\n",
+        "                                    file_name=\"condition_combinations.csv\",\n",
+        "                                    mime=\"text/csv\"\n",
+        "                                )\n",
+        "                            else:\n",
+        "                                st.warning(\"No combinations found matching the criteria.\")\n",
+        "\n",
+        "if __name__ == \"__main__\":\n",
+        "    main()"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 403
+        },
+        "id": "Wokg3cDyuTbU",
+        "outputId": "e7062f80-e47d-42b3-d18e-b68ca000aa0f"
+      },
+      "execution_count": 9,
+      "outputs": [
+        {
+          "output_type": "error",
+          "ename": "ModuleNotFoundError",
+          "evalue": "No module named 'streamlit'",
+          "traceback": [
+            "\u001b[0;31m---------------------------------------------------------------------------\u001b[0m",
+            "\u001b[0;31mModuleNotFoundError\u001b[0m                       Traceback (most recent call last)",
+            "\u001b[0;32m<ipython-input-9-edca6f3795de>\u001b[0m in \u001b[0;36m<cell line: 2>\u001b[0;34m()\u001b[0m\n\u001b[1;32m      1\u001b[0m \u001b[0;31m# Block 1: Imports\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m----> 2\u001b[0;31m \u001b[0;32mimport\u001b[0m \u001b[0mstreamlit\u001b[0m \u001b[0;32mas\u001b[0m \u001b[0mst\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m      3\u001b[0m \u001b[0;32mimport\u001b[0m \u001b[0mpandas\u001b[0m \u001b[0;32mas\u001b[0m \u001b[0mpd\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m      4\u001b[0m \u001b[0;32mimport\u001b[0m \u001b[0mnumpy\u001b[0m \u001b[0;32mas\u001b[0m \u001b[0mnp\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m      5\u001b[0m \u001b[0;32mimport\u001b[0m \u001b[0mmatplotlib\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mpyplot\u001b[0m \u001b[0;32mas\u001b[0m \u001b[0mplt\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
+            "\u001b[0;31mModuleNotFoundError\u001b[0m: No module named 'streamlit'",
+            "",
+            "\u001b[0;31m---------------------------------------------------------------------------\u001b[0;32m\nNOTE: If your import is failing due to a missing package, you can\nmanually install dependencies using either !pip or !apt.\n\nTo view examples of installing some common dependencies, click the\n\"Open Examples\" button below.\n\u001b[0;31m---------------------------------------------------------------------------\u001b[0m\n"
+          ],
+          "errorDetails": {
+            "actions": [
+              {
+                "action": "open_url",
+                "actionText": "Open Examples",
+                "url": "/notebooks/snippets/importing_libraries.ipynb"
+              }
             ]
-        conditions_b = set(time_filtered_data[time_filtered_data['ConditionA'] == condition_a]['ConditionB'])
-        connected_conditions.update(conditions_b)
-    
-    active_conditions = set(patient_conditions) | connected_conditions
-    active_categories = {condition_categories[cond] for cond in active_conditions if cond in condition_categories}
-
-    # Organize conditions by system
-    system_conditions = {}
-    for condition in active_conditions:
-        category = condition_categories.get(condition, "Other")
-        if category not in system_conditions:
-            system_conditions[category] = []
-        system_conditions[category].append(condition)
-
-    # Calculate layout positions
-    angle_step = (2 * math.pi) / len(active_categories)
-    radius = 500
-    system_centers = {}
-
-    for i, category in enumerate(sorted(active_categories)):
-        angle = i * angle_step
-        x = radius * math.cos(angle)
-        y = radius * math.sin(angle)
-        system_centers[category] = (x, y)
-
-    # Add nodes
-    for category, conditions in system_conditions.items():
-        center_x, center_y = system_centers[category]
-        sub_radius = radius / (len(conditions) + 1)
-        
-        for j, condition in enumerate(conditions):
-            sub_angle = (j / len(conditions)) * (2 * math.pi)
-            node_x = center_x + sub_radius * math.cos(sub_angle)
-            node_y = center_y + sub_radius * math.sin(sub_angle)
-            
-            base_color = SYSTEM_COLORS[category]
-            
-            if condition in patient_conditions:
-                net.add_node(
-                    condition,
-                    label=f"★ {condition}",
-                    title=f"{condition}\nCategory: {category}",
-                    size=30,
-                    x=node_x,
-                    y=node_y,
-                    color={'background': f"{base_color}50", 'border': '#000000'},
-                    physics=True,
-                    fixed=False
-                )
-            else:
-                net.add_node(
-                    condition,
-                    label=condition,
-                    title=f"{condition}\nCategory: {category}",
-                    size=20,
-                    x=node_x,
-                    y=node_y,
-                    color={'background': f"{base_color}50", 'border': base_color},
-                    physics=True,
-                    fixed=False
-                )
-
-    # Add edges with trajectory information
-    total_patients = data['TotalPatientsInGroup'].iloc[0]
-    for condition_a in patient_conditions:
-        relevant_data = filtered_data[filtered_data['ConditionA'] == condition_a]
-        if time_horizon and time_margin:
-            relevant_data = relevant_data[
-                relevant_data['MedianDurationYearsWithIQR'].apply(lambda x: parse_iqr(x)[0]) <= time_horizon * (1 + time_margin)
-            ]
-
-        for _, row in relevant_data.iterrows():
-            condition_b = row['ConditionB']
-            if condition_b not in patient_conditions:
-                edge_width = max(1, min(8, math.log2(row['OddsRatio'] + 1)))
-                prevalence = (row['PairFrequency'] / total_patients) * 100
-                directional_percentage = row['DirectionalPercentage']
-
-                if directional_percentage >= 50:
-                    source, target = condition_a, condition_b
-                else:
-                    source, target = condition_b, condition_a
-                    directional_percentage = 100 - directional_percentage
-
-                edge_label = (f"OR: {row['OddsRatio']:.1f}\n"
-                            f"Years: {row['MedianDurationYearsWithIQR']}\n"
-                            f"n={row['PairFrequency']} ({prevalence:.1f}%)\n"
-                            f"Proceeds: {directional_percentage:.1f}%")
-
-                net.add_edge(
-                    source,
-                    target,
-                    label=edge_label,
-                    title=edge_label,
-                    width=edge_width,
-                    arrows={'to': {'enabled': True, 'scaleFactor': 1}},
-                    color={'color': 'rgba(128,128,128,0.7)', 'highlight': 'black'},
-                    smooth={'type': 'curvedCW', 'roundness': 0.2}
-                )
-
-    # Generate final HTML with legend
-    network_html = net.generate_html()
-    final_html = network_html.replace('</body>', f'{legend_html}</body>')
-    
-    return final_html
-
-@st.cache_data
-def analyze_condition_combinations(data, min_percentage, min_frequency):
-    """Analyze combinations of conditions"""
-    total_patients = data['TotalPatientsInGroup'].iloc[0]
-
-    filtered_data = data[
-        (data['Percentage'] >= min_percentage) &
-        (data['PairFrequency'] >= min_frequency)
-    ].copy()
-
-    # Clean condition names
-    for col in ['ConditionA', 'ConditionB']:
-        filtered_data[col] = (filtered_data[col]
-                            .str.replace(r'\s*\([^)]*\)', '', regex=True)
-                            .str.replace('_', ' '))
-
-    unique_conditions = pd.unique(filtered_data[['ConditionA', 'ConditionB']].values.ravel('K'))
-    
-    # Calculate frequencies
-    pair_frequency_map = {}
-    condition_frequency_map = {}
-    
-    for _, row in filtered_data.iterrows():
-        for key in [f"{row['ConditionA']}_{row['ConditionB']}", 
-                   f"{row['ConditionB']}_{row['ConditionA']}"]:
-            pair_frequency_map[key] = row['PairFrequency']
-        
-        for condition in [row['ConditionA'], row['ConditionB']]:
-            condition_frequency_map[condition] = (
-                condition_frequency_map.get(condition, 0) + row['PairFrequency']
-            )
-
-    # Analyze combinations
-    result_data = []
-    for k in range(3, min(8, len(unique_conditions) + 1)):
-        for comb in combinations(unique_conditions, k):
-            pair_frequencies = [
-                pair_frequency_map.get(f"{a}_{b}", 0) 
-                for a, b in combinations(comb, 2)
-            ]
-            
-            frequency = min(pair_frequencies)
-            prevalence = (frequency / total_patients) * 100
-            
-            # Calculate odds ratio
-            observed = frequency
-            expected = total_patients
-            for condition in comb:
-                expected *= (condition_frequency_map[condition] / total_patients)
-            
-            odds_ratio = observed / expected if expected != 0 else float('inf')
-            
-            result_data.append({
-                'Combination': ' + '.join(comb),
-                'NumConditions': len(comb),
-                'Minimum Pair Frequency': frequency,
-                'Prevalence of the combination (%)': prevalence,
-                'Total odds ratio': odds_ratio
-            })
-
-    results_df = pd.DataFrame(result_data)
-    results_df = (results_df[results_df['Prevalence of the combination (%)'] > 0]
-                 .sort_values('Prevalence of the combination (%)', ascending=False))
-    
-    return results_df
-
-def create_sensitivity_plot(results):
-    """Create the sensitivity analysis visualization"""
-    fig, ax1 = plt.subplots(figsize=(12, 6))
-    ax2 = ax1.twinx()
-
-    x_vals = results['OR_Threshold'].values
-    bar_heights = results['Num_Trajectories']
-
-    # Plot bars and lines
-    bars = ax1.bar(x_vals, bar_heights, alpha=0.3, color='navy')
-    line = ax2.plot(x_vals, results['Coverage_Percent'], 'r-o', linewidth=2)
-
-    # Add scatter plot with variable sizes
-    sizes = (results['System_Pairs'] / results['System_Pairs'].max()) * 500
-    scatter = ax2.scatter(x_vals, results['Coverage_Percent'], s=sizes, alpha=0.5, color='darkred')
-
-    # Add text annotations
-    for i, row in results.iterrows():
-        ax1.text(row['OR_Threshold'], bar_heights[i] * 0.5,
-                f"Median: {row['Median_Duration']:.1f}y\nIQR: [{row['Q1_Duration']:.1f}-{row['Q3_Duration']:.1f}]",
-                ha='center', va='center', fontsize=10)
-
-    # Labels and legend
-    ax1.set_xlabel('Minimum Odds Ratio Threshold')
-    ax1.set_ylabel('Number of Disease Trajectories')
-    ax2.set_ylabel('Population Coverage (%)')
-
-    legend_elements = [
-        patches.Patch(facecolor='navy', alpha=0.3, label='Number of Trajectories'),
-        Line2D([0], [0], color='r', marker='o', label='Population Coverage %'),
-        Line2D([0], [0], marker='o', color='darkred', alpha=0.5, 
-               label='System Pairs', markersize=10, linestyle='None')
-    ]
-    ax1.legend(handles=legend_elements, loc='upper right')
-
-    plt.title('Impact of Odds Ratio Threshold on Disease Trajectory Analysis')
-    plt.tight_layout()
-    return fig
-
-def create_combinations_plot(results_df):
-    """Create the combinations analysis visualization"""
-    fig, ax = plt.subplots(figsize=(12, 6))
-    
-    top_10 = results_df.nlargest(10, 'Prevalence of the combination (%)')
-    bars = ax.bar(range(len(top_10)), top_10['Prevalence of the combination (%)'])
-    
-    # Customize the plot
-    ax.set_xticks(range(len(top_10)))
-    ax.set_xticklabels(top_10['Combination'], rotation=45, ha='right')
-    ax.set_title('Top 10 Condition Combinations by Prevalence')
-    ax.set_xlabel('Condition Combinations')
-    ax.set_ylabel('Prevalence (%)')
-    
-    # Add value labels on top of bars
-    for i, bar in enumerate(bars):
-        height = bar.get_height()
-        ax.text(bar.get_x() + bar.get_width()/2., height,
-                f'{height:.1f}%',
-                ha='center', va='bottom')
-    
-    plt.tight_layout()
-    return fig
-
-def main():
-    # Page configuration
-    st.set_page_config(
-        page_title="Multimorbidity Analysis Tool",
-        layout="wide",
-        initial_sidebar_state="expanded"
-    )
-
-    # Custom CSS
-    st.markdown("""
-        <style>
-        .main {
-            padding: 2rem;
+          }
         }
-        .stButton > button {
-            width: 100%;
-            height: 3rem;
-            margin: 1rem 0;
-            background-color: #ff4b4b;
-            color: white;
-        }
-        .stButton > button:hover {
-            background-color: #ff3333;
-        }
-        .stTabs [data-baseweb="tab-list"] {
-            gap: 2rem;
-            padding: 1rem 0;
-        }
-        .stTabs [data-baseweb="tab"] {
-            height: 4rem;
-            white-space: pre-wrap;
-            background-color: #f0f2f6;
-            border-radius: 4px;
-        }
-        .stTabs [data-baseweb="tab"]:hover {
-            background-color: #e6e9ef;
-        }
-        .stTabs [data-baseweb="tab"][aria-selected="true"] {
-            background-color: #ff4b4b;
-            color: white;
-        }
-        div[data-testid="stSidebarNav"] {
-            background-color: #f8f9fa;
-            padding: 1rem;
-            border-radius: 4px;
-        }
-        div[data-testid="stFileUploader"] {
-            background-color: #f8f9fa;
-            padding: 2rem;
-            border-radius: 4px;
-            margin-bottom: 2rem;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-
-    # Header
-    st.title("🏥 Multimorbidity Analysis Tool")
-    st.markdown("""
-    This tool helps analyze disease trajectories and comorbidity patterns in patient data.
-    Upload your data file to begin analysis.
-    """)
-
-    # File uploader in a container
-    with st.container():
-        uploaded_file = st.file_uploader(
-            "Choose a CSV file",
-            type="csv",
-            help="Upload a CSV file containing your patient data"
-        )
-
-    if uploaded_file is not None:
-        # Load and process data
-        data, total_patients, gender, age_group = load_and_process_data(uploaded_file)
-
-        if data is not None:
-            # Data summary in an info box
-            st.info(f"""
-            📊 **Data Summary**
-            - Total Patients: {total_patients:,}
-            - Gender: {gender}
-            - Age Group: {age_group}
-            """)
-
-            # Create tabs with icons
-            tabs = st.tabs([
-                "📈 Sensitivity Analysis",
-                "🔄 Trajectory Prediction",
-                "🔍 Condition Combinations"
-            ])
-
-            # Sensitivity Analysis Tab
-            with tabs[0]:
-                st.header("Sensitivity Analysis")
-                st.markdown("""
-                Explore how different odds ratio thresholds affect the number of disease
-                trajectories and population coverage.
-                """)
-                
-                analysis_col1, analysis_col2 = st.columns([3, 1])
-                
-                with analysis_col2:
-                    st.markdown("### Control Panel")
-                    analyze_button = st.button(
-                        "🚀 Run Analysis",
-                        key="run_sensitivity",
-                        help="Click to perform sensitivity analysis"
-                    )
-
-                with analysis_col1:
-                    if analyze_button:
-                        with st.spinner("💫 Analyzing data..."):
-                            results = perform_sensitivity_analysis(data)
-                            
-                            st.subheader("Analysis Results")
-                            display_df = results.drop('Top_Patterns', axis=1)
-                            st.dataframe(
-                                display_df.style.background_gradient(cmap='YlOrRd', subset=['Coverage_Percent'])
-                            )
-
-                            st.subheader("Top 5 Strongest Trajectories")
-                            patterns_df = pd.DataFrame(results.iloc[0]['Top_Patterns'])
-                            st.dataframe(
-                                patterns_df.style.background_gradient(cmap='YlOrRd', subset=['OddsRatio'])
-                            )
-
-                            # Visualization
-                            fig = create_sensitivity_plot(results)
-                            st.pyplot(fig)
-
-                            # Download button
-                            csv = display_df.to_csv(index=False)
-                            st.download_button(
-                                label="📥 Download Results",
-                                data=csv,
-                                file_name="sensitivity_analysis_results.csv",
-                                mime="text/csv"
-                            )
-
-            # Trajectory Prediction Tab
-            with tabs[1]:
-                st.header("Trajectory Prediction")
-                
-                viz_col, param_col = st.columns([3, 1])
-                
-                with param_col:
-                    st.markdown("### Parameters")
-                    with st.container():
-                        min_or = st.slider(
-                            "Minimum Odds Ratio",
-                            1.0, 10.0, 2.0, 0.5,
-                            help="Filter trajectories by minimum odds ratio"
-                        )
-                        
-                        unique_conditions = sorted(set(data['ConditionA'].unique()) | set(data['ConditionB'].unique()))
-                        selected_conditions = st.multiselect(
-                            "Select Initial Conditions",
-                            unique_conditions,
-                            help="Choose the starting conditions for trajectory analysis"
-                        )
-
-                        if selected_conditions:
-                            max_years = math.ceil(data['MedianDurationYearsWithIQR'].apply(lambda x: parse_iqr(x)[0]).max())
-                            time_horizon = st.slider(
-                                "Time Horizon (years)",
-                                1, max_years, min(5, max_years),
-                                help="Maximum time period to consider"
-                            )
-                            
-                            time_margin = st.slider(
-                                "Time Margin",
-                                0.0, 0.5, 0.1, 0.05,
-                                help="Allowable variation in time predictions"
-                            )
-
-                            generate_button = st.button(
-                                "🔄 Generate Network",
-                                help="Click to generate trajectory network"
-                            )
-
-                with viz_col:
-                    if selected_conditions and generate_button:
-                        with st.spinner("🌐 Generating network..."):
-                            try:
-                                html_content = create_network_graph(
-                                    data,
-                                    selected_conditions,
-                                    min_or,
-                                    time_horizon,
-                                    time_margin
-                                )
-                                st.components.v1.html(html_content, height=800)
-                                
-                                st.download_button(
-                                    label="📥 Download Network",
-                                    data=html_content,
-                                    file_name="trajectory_network.html",
-                                    mime="text/html"
-                                )
-                            except Exception as e:
-                                st.error(f"Failed to generate network: {str(e)}")
-
-            # Condition Combinations Tab
-            with tabs[2]:
-                st.header("Condition Combinations Analysis")
-                
-                param_col, results_col = st.columns([1, 3])
-                
-                with param_col:
-                    st.markdown("### Analysis Parameters")
-                    
-                    min_freq_range = (data['PairFrequency'].min(), data['PairFrequency'].max())
-                    min_frequency = st.slider(
-                        "Minimum Pair Frequency",
-                        int(min_freq_range[0]),
-                        int(min_freq_range[1]),
-                        int(min_freq_range[0]),
-                        help="Minimum number of occurrences required"
-                    )
-                    
-                    min_percentage_range = (data['Percentage'].min(), data['Percentage'].max())
-                    min_percentage = st.slider(
-                        "Minimum Prevalence (%)",
-                        float(min_percentage_range[0]),
-                        float(min_percentage_range[1]),
-                        float(min_percentage_range[0]),
-                        0.1,
-                        help="Minimum percentage of population affected"
-                    )
-
-                    analyze_combinations_button = st.button(
-                        "🔍 Analyze Combinations",
-                        help="Click to analyze condition combinations"
-                    )
-
-                with results_col:
-                    if analyze_combinations_button:
-                        with st.spinner("🔄 Analyzing combinations..."):
-                            results_df = analyze_condition_combinations(
-                                data,
-                                min_percentage,
-                                min_frequency
-                            )
-                            
-                            if not results_df.empty:
-                                st.subheader(f"Analysis Results ({len(results_df)} combinations)")
-                                st.dataframe(
-                                    results_df.style.background_gradient(
-                                        cmap='YlOrRd',
-                                        subset=['Prevalence of the combination (%)']
-                                    )
-                                )
-
-                                fig = create_combinations_plot(results_df)
-                                st.pyplot(fig)
-
-                                csv = results_df.to_csv(index=False)
-                                st.download_button(
-                                    label="📥 Download Results",
-                                    data=csv,
-                                    file_name="condition_combinations.csv",
-                                    mime="text/csv"
-                                )
-                            else:
-                                st.warning("No combinations found matching the criteria.")
-
-if __name__ == "__main__":
-    main()
+      ]
+    }
+  ]
+}
