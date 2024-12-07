@@ -713,6 +713,32 @@ def create_personalized_analysis(data, patient_conditions, time_horizon=None, ti
     """
 
     return html
+# Add these imports at the top with your other imports
+def check_password():
+    """Returns `True` if the user had the correct password."""
+    def password_entered():
+        """Checks whether a password entered by the user is correct."""
+        if st.session_state["password"] == st.secrets["password"]:
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]  # Don't store password
+        else:
+            st.session_state["password_correct"] = False
+
+    # First run or password not correct
+    if "password_correct" not in st.session_state:
+        # Show input for password
+        st.text_input(
+            "Please enter the password", 
+            type="password", 
+            key="password",
+            on_change=password_entered
+        )
+        return False
+    
+    # Password correct
+    elif st.session_state["password_correct"]:
+        return True
+
 def main():
     # Initialize session state for data persistence
     if 'sensitivity_results' not in st.session_state:
@@ -744,6 +770,10 @@ def main():
         layout="wide",
         initial_sidebar_state="expanded"
     )
+
+    # Check password before showing any content
+    if not check_password():
+        st.stop()  # Don't continue if password check fails
 
     # Custom CSS
     st.markdown("""
