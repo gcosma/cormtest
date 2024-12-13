@@ -959,7 +959,7 @@ def main():
                         "Select Initial Conditions",
                         options=st.session_state.unique_conditions,
                         default=st.session_state.selected_conditions,
-                        key="shared_conditions",
+                        key="trajectory_select",
                         help="Choose the starting conditions for trajectory analysis"
                     )
                     st.session_state.selected_conditions = selected_conditions
@@ -1169,7 +1169,7 @@ def main():
                     "Select Current Conditions",
                     unique_conditions,
                     default=st.session_state.selected_conditions,
-                    key="shared_conditions",
+                    key="personal_select",
                     help="Choose the patient's current conditions"
                 )
                 st.session_state.selected_conditions = selected_conditions
@@ -1259,7 +1259,7 @@ def main():
                         "Select Initial Conditions",
                         unique_conditions,
                         default=st.session_state.selected_conditions,
-                        key="shared_conditions",
+                        key="custom_select",
                         help="Choose the starting conditions for trajectory analysis"
                     )
                     st.session_state.selected_conditions = selected_conditions
