@@ -807,6 +807,7 @@ def main():
             padding: 1.5rem;
             border-radius: 8px;
             height: 100%;
+            margin-top: 3.7rem;
         }
         .control-panel h3 {
             color: #1a1a1a;
