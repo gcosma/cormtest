@@ -800,219 +800,46 @@ def main():
     # Custom CSS
     st.markdown("""
         <style>
-        /* Base Theme */
-        :root {
-            --text-color: #1F2937;
-            --background-color: #FFFFFF;
-            --border-color: #E5E7EB;
-            --accent-color: #4B5563;
-            --hover-color: #374151;
-            --focus-ring: #6B7280;
-        }
-
-        /* Global Styles */
         .main {
             padding: 2rem;
-            color: var(--text-color);
         }
-
-        /* Typography */
-        h1, h2, h3, h4, h5, h6 {
-            color: var(--text-color);
-            font-weight: 600;
-            line-height: 1.2;
-        }
-
-        /* Control Panel */
-        .control-panel {
-            background-color: rgba(255, 255, 255, 0.8);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 1.5rem;
-            height: 100%;
-            margin-top: 0;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-        }
-
-        /* Slider Styles */
-        .stSlider {
-            padding: 1rem 0;
-        }
-
-        .stSlider > div > div > div > div {
-            background-color: var(--border-color) !important;
-            height: 4px !important;
-            border-radius: 2px !important;
-        }
-
-        .stSlider > div > div > div > div > div {
-            background-color: var(--background-color) !important;
-            border: 2px solid var(--accent-color) !important;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
-            height: 20px !important;
-            width: 20px !important;
-            margin-top: -8px !important;
-            cursor: pointer !important;
-            transition: all 0.2s ease !important;
-        }
-
-        .stSlider > div > div > div > div > div:hover {
-            border-color: var(--hover-color) !important;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
-        }
-
-        .stSlider > div > div > div > div > div:focus {
-            outline: 2px solid var(--focus-ring) !important;
-            outline-offset: 2px !important;
-        }
-
-        /* Number Input Fields */
-        .stNumberInput > div > div > input {
-            background-color: transparent !important;
-            border: 1px solid var(--border-color) !important;
-            border-radius: 8px !important;
-            padding: 0.5rem !important;
-            color: var(--text-color) !important;
-            font-size: 14px !important;
-        }
-
-        .stNumberInput > div > div > input:focus {
-            border-color: var(--accent-color) !important;
-            box-shadow: 0 0 0 2px rgba(75, 85, 99, 0.2) !important;
-        }
-
-        /* Buttons */
         .stButton > button {
             width: 100%;
             height: 3rem;
             margin: 1rem 0;
-            background: transparent;
-            color: var(--text-color);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            font-weight: 600;
-            letter-spacing: 0.025em;
-            font-size: 0.875rem;
-            transition: all 0.2s ease;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            background-color: #ff4b4b;
+            color: white;
         }
-
         .stButton > button:hover {
-            background: rgba(75, 85, 99, 0.05);
-            border-color: var(--accent-color);
+            background-color: #ff3333;
         }
-
-        .stButton > button:focus {
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(75, 85, 99, 0.2);
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 2rem;
+            padding: 1rem 0;
         }
-
-        /* Select Boxes */
-        .stSelectbox > div > div {
-            background-color: transparent !important;
-            border: 1px solid var(--border-color) !important;
-            border-radius: 8px !important;
+        .stTabs [data-baseweb="tab"] {
+            height: 4rem;
+            white-space: pre-wrap;
+            background-color: #f0f2f6;
+            border-radius: 4px;
         }
-
-        .stSelectbox > div > div:hover {
-            border-color: var(--accent-color) !important;
+        .stTabs [data-baseweb="tab"]:hover {
+            background-color: #e6e9ef;
         }
-
-        /* Multiselect */
-        .stMultiSelect > div > div {
-            background-color: transparent !important;
-            border: 1px solid var(--border-color) !important;
-            border-radius: 8px !important;
+        .stTabs [data-baseweb="tab"][aria-selected="true"] {
+            background-color: #ff4b4b;
+            color: white;
         }
-
-        .stMultiSelect > div > div:hover {
-            border-color: var(--accent-color) !important;
+        div[data-testid="stSidebarNav"] {
+            background-color: #f8f9fa;
+            padding: 1rem;
+            border-radius: 4px;
         }
-
-        /* File Uploader */
-        .stFileUploader > div {
-            background-color: transparent !important;
-            border: 2px dashed var(--border-color) !important;
-            border-radius: 8px !important;
-            padding: 1rem !important;
-        }
-
-        .stFileUploader > div:hover {
-            border-color: var(--accent-color) !important;
-        }
-
-        /* Progress Bar */
-        .stProgress > div > div > div {
-            background-color: var(--border-color) !important;
-        }
-
-        .stProgress > div > div > div > div {
-            background-color: var(--accent-color) !important;
-        }
-
-        /* Info Boxes */
-        .stInfo {
-            background-color: rgba(75, 85, 99, 0.1) !important;
-            color: var(--text-color) !important;
-            border: none !important;
-            border-radius: 8px !important;
-        }
-
-        /* Remove Streamlit Branding */
-        div[data-testid="stToolbar"],
-        div[data-testid="stDecoration"],
-        div[data-testid="stStatusWidget"],
-        #MainMenu {
-            display: none !important;
-        }
-
-        /* Mobile Optimization */
-        @media (max-width: 768px) {
-            .control-panel {
-                padding: 1rem;
-            }
-
-            .stButton > button {
-                height: 3.5rem;
-                font-size: 1rem;
-            }
-
-            .stSlider > div > div > div > div > div {
-                height: 28px !important;
-                width: 28px !important;
-                margin-top: -12px !important;
-            }
-        }
-
-        /* High Contrast Mode Support */
-        @media (forced-colors: active) {
-            .control-panel {
-                border: 2px solid ButtonText;
-            }
-
-            .stButton > button {
-                border: 2px solid ButtonText;
-            }
-
-            .stSlider > div > div > div > div {
-                background-color: ButtonFace;
-                border: 1px solid ButtonText;
-            }
-        }
-
-        /* Better Focus Indicators */
-        *:focus {
-            outline: 2px solid var(--focus-ring) !important;
-            outline-offset: 2px !important;
-        }
-
-        /* Remove Default Streamlit Backgrounds */
-        .stApp {
-            background-color: var(--background-color) !important;
-        }
-
-        .element-container {
-            margin-top: 0 !important;
+        div[data-testid="stFileUploader"] {
+            background-color: #f8f9fa;
+            padding: 2rem;
+            border-radius: 4px;
+            margin-bottom: 2rem;
         }
         </style>
     """, unsafe_allow_html=True)
