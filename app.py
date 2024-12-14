@@ -800,143 +800,220 @@ def main():
     # Custom CSS
     st.markdown("""
         <style>
-            /* Base Styles */
-            .main {
-                padding: 2rem;
-            }
-            
-            /* Control Panel Container */
+        /* Base Theme */
+        :root {
+            --text-color: #1F2937;
+            --background-color: #FFFFFF;
+            --border-color: #E5E7EB;
+            --accent-color: #4B5563;
+            --hover-color: #374151;
+            --focus-ring: #6B7280;
+        }
+
+        /* Global Styles */
+        .main {
+            padding: 2rem;
+            color: var(--text-color);
+        }
+
+        /* Typography */
+        h1, h2, h3, h4, h5, h6 {
+            color: var(--text-color);
+            font-weight: 600;
+            line-height: 1.2;
+        }
+
+        /* Control Panel */
+        .control-panel {
+            background-color: rgba(255, 255, 255, 0.8);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            height: 100%;
+            margin-top: 0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Slider Styles */
+        .stSlider {
+            padding: 1rem 0;
+        }
+
+        .stSlider > div > div > div > div {
+            background-color: var(--border-color) !important;
+            height: 4px !important;
+            border-radius: 2px !important;
+        }
+
+        .stSlider > div > div > div > div > div {
+            background-color: var(--background-color) !important;
+            border: 2px solid var(--accent-color) !important;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+            height: 20px !important;
+            width: 20px !important;
+            margin-top: -8px !important;
+            cursor: pointer !important;
+            transition: all 0.2s ease !important;
+        }
+
+        .stSlider > div > div > div > div > div:hover {
+            border-color: var(--hover-color) !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+        }
+
+        .stSlider > div > div > div > div > div:focus {
+            outline: 2px solid var(--focus-ring) !important;
+            outline-offset: 2px !important;
+        }
+
+        /* Number Input Fields */
+        .stNumberInput > div > div > input {
+            background-color: transparent !important;
+            border: 1px solid var(--border-color) !important;
+            border-radius: 8px !important;
+            padding: 0.5rem !important;
+            color: var(--text-color) !important;
+            font-size: 14px !important;
+        }
+
+        .stNumberInput > div > div > input:focus {
+            border-color: var(--accent-color) !important;
+            box-shadow: 0 0 0 2px rgba(75, 85, 99, 0.2) !important;
+        }
+
+        /* Buttons */
+        .stButton > button {
+            width: 100%;
+            height: 3rem;
+            margin: 1rem 0;
+            background: transparent;
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-weight: 600;
+            letter-spacing: 0.025em;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .stButton > button:hover {
+            background: rgba(75, 85, 99, 0.05);
+            border-color: var(--accent-color);
+        }
+
+        .stButton > button:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(75, 85, 99, 0.2);
+        }
+
+        /* Select Boxes */
+        .stSelectbox > div > div {
+            background-color: transparent !important;
+            border: 1px solid var(--border-color) !important;
+            border-radius: 8px !important;
+        }
+
+        .stSelectbox > div > div:hover {
+            border-color: var(--accent-color) !important;
+        }
+
+        /* Multiselect */
+        .stMultiSelect > div > div {
+            background-color: transparent !important;
+            border: 1px solid var(--border-color) !important;
+            border-radius: 8px !important;
+        }
+
+        .stMultiSelect > div > div:hover {
+            border-color: var(--accent-color) !important;
+        }
+
+        /* File Uploader */
+        .stFileUploader > div {
+            background-color: transparent !important;
+            border: 2px dashed var(--border-color) !important;
+            border-radius: 8px !important;
+            padding: 1rem !important;
+        }
+
+        .stFileUploader > div:hover {
+            border-color: var(--accent-color) !important;
+        }
+
+        /* Progress Bar */
+        .stProgress > div > div > div {
+            background-color: var(--border-color) !important;
+        }
+
+        .stProgress > div > div > div > div {
+            background-color: var(--accent-color) !important;
+        }
+
+        /* Info Boxes */
+        .stInfo {
+            background-color: rgba(75, 85, 99, 0.1) !important;
+            color: var(--text-color) !important;
+            border: none !important;
+            border-radius: 8px !important;
+        }
+
+        /* Remove Streamlit Branding */
+        div[data-testid="stToolbar"],
+        div[data-testid="stDecoration"],
+        div[data-testid="stStatusWidget"],
+        #MainMenu {
+            display: none !important;
+        }
+
+        /* Mobile Optimization */
+        @media (max-width: 768px) {
             .control-panel {
-                background-color: #ffffff;
-                border: 1px solid #e0e0e0;
-                border-radius: 12px;
-                padding: 1.5rem;
-                height: 100%;
-                margin-top: 0;  /* Changed from 1rem to 0 to remove space completely */
-                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+                padding: 1rem;
             }
-            
-            /* Override Streamlit's default spacing */
-            .css-1544g2n {
-                margin-top: 0 !important;
-                padding-top: 0 !important;
-            }
-            
-            .css-1n76uvr {
-                margin-top: 0 !important;
-            }
-            
-            /* Control Panel Header */
-            .control-panel h3 {
-                color: #333333;
-                font-size: 1.25rem;
-                font-weight: 600;
-                margin-bottom: 1.5rem;
-                padding-bottom: 0.75rem;
-                border-bottom: 2px solid #f1f5f9;
-                letter-spacing: 0.025em;
-            }
-            
-            /* Number Input and Slider Customization */
-            .stNumberInput > div > div > input {
-                background-color: transparent !important;
-                border: 1px solid #e0e0e0;
-                border-radius: 8px;
-                padding: 0.5rem;
-                color: black !important;
-            }
-            
-            /* Override the default slider colors */
-            .stSlider [data-testid="stThumbValue"] {
-                background: transparent !important;
-                color: black !important;
-            }
-            
-            /* Remove colored backgrounds from slider */
-            .stSlider > div > div > div[data-testid="stTickBar"] > div {
-                background: transparent !important;
-            }
-            
-            .stSlider > div > div > div > div[data-testid="stTickBar"] {
-                background: transparent !important;
-            }
-            
-            /* Style the slider track */
-            .stSlider > div > div > div > div {
-                background-color: #e0e0e0 !important;
-            }
-            
-            /* Style the slider handle */
-            .stSlider > div > div > div > div > div {
-                background-color: #666666 !important;
-                border: 2px solid #ffffff !important;
-                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
-            }
-            
-            /* Remove any colored backgrounds from inputs */
-            .stSlider input[type="number"] {
-                background: transparent !important;
-                color: black !important;
-                border: none !important;
-            }
-            
-            /* Override Streamlit's default container padding */
-            .element-container {
-                margin-top: 0 !important;
-            }
-            
-            /* Make sure text inputs and selections are visible */
-            .stTextInput > div > div > input,
-            .stSelectbox > div > div {
-                background-color: white !important;
-                color: black !important;
-            }
-            
-            /* Button Styles */
+
             .stButton > button {
-                width: 100%;
-                height: 3rem;
-                margin: 1rem 0;
-                background: #f5f5f5;
-                color: #333333;
-                border: 1px solid #e0e0e0;
-                border-radius: 8px;
-                font-weight: 600;
-                letter-spacing: 0.025em;
-                text-transform: uppercase;
-                font-size: 0.875rem;
-                transition: all 0.2s ease;
-                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+                height: 3.5rem;
+                font-size: 1rem;
             }
-            
-            /* Make sure spin buttons are visible */
-            input[type="number"]::-webkit-inner-spin-button,
-            input[type="number"]::-webkit-outer-spin-button {
-                opacity: 1 !important;
-                background: transparent !important;
+
+            .stSlider > div > div > div > div > div {
+                height: 28px !important;
+                width: 28px !important;
+                margin-top: -12px !important;
             }
-            
-            /* Override any remaining colored backgrounds */
-            [data-testid="stFormSubmitButton"] > button {
-                background-color: #ffffff !important;
+        }
+
+        /* High Contrast Mode Support */
+        @media (forced-colors: active) {
+            .control-panel {
+                border: 2px solid ButtonText;
             }
-            
-            /* Remove any remaining default Streamlit backgrounds */
-            .stApp {
-                background-color: white !important;
+
+            .stButton > button {
+                border: 2px solid ButtonText;
             }
-            
-            div[data-testid="stToolbar"] {
-                visibility: hidden;
+
+            .stSlider > div > div > div > div {
+                background-color: ButtonFace;
+                border: 1px solid ButtonText;
             }
-            
-            div[data-testid="stDecoration"] {
-                visibility: hidden;
-            }
-            
-            div[data-testid="stStatusWidget"] {
-                visibility: hidden;
-            }
+        }
+
+        /* Better Focus Indicators */
+        *:focus {
+            outline: 2px solid var(--focus-ring) !important;
+            outline-offset: 2px !important;
+        }
+
+        /* Remove Default Streamlit Backgrounds */
+        .stApp {
+            background-color: var(--background-color) !important;
+        }
+
+        .element-container {
+            margin-top: 0 !important;
+        }
         </style>
     """, unsafe_allow_html=True)
 
