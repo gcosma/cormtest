@@ -14,6 +14,22 @@ from pathlib import Path
 from matplotlib import patches
 from itertools import combinations
 
+def clear_session_state():
+    """Clear all analysis results from session state when a new file is uploaded"""
+    st.session_state.sensitivity_results = None
+    st.session_state.network_html = None
+    st.session_state.combinations_results = None
+    st.session_state.combinations_fig = None
+    st.session_state.personalized_html = None
+    st.session_state.selected_conditions = []
+    st.session_state.min_or = 2.0
+    st.session_state.time_horizon = 5
+    st.session_state.time_margin = 0.1
+    st.session_state.min_frequency = None
+    st.session_state.min_percentage = None
+    st.session_state.unique_conditions = []
+
+
 # Disease category mappings
 condition_categories = {
    "Anaemia": "Blood",
@@ -843,6 +859,20 @@ def main():
 
         if uploaded_file is not None:
             try:
+                # Calculate hash of uploaded file
+                file_contents = uploaded_file.getvalue()
+                current_hash = hash(file_contents)
+                
+                # Check if this is a new file
+                if 'data_hash' not in st.session_state or current_hash != st.session_state.data_hash:
+                    # Clear all session state variables
+                    clear_session_state()
+                    # Update the hash
+                    st.session_state.data_hash = current_hash
+                
+                # Reset file pointer after reading
+                uploaded_file.seek(0)
+                
                 # Load and process data
                 data, total_patients, gender, age_group = load_and_process_data(uploaded_file)
 
@@ -1293,4 +1323,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
