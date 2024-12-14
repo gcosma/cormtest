@@ -766,22 +766,8 @@ def add_footer():
                     to develop and enhance care coordination for people with intellectual disabilities 
                     and multiple long term conditions.</p>
                 </div>
-                <div>
-                    <h3>Partner Institutions</h3>
-                    <ul>
-                        <li>Loughborough University</li>
-                        <li>Leicestershire NHS Partnership Trust</li>
-                        <li>University of Leicester</li>
-                        <li>Swansea University</li>
-                        <li>Kings College London</li>
-                        <li>University of Plymouth</li>
-                        <li>De Montfort University</li>
-                        <li>University of Nottingham</li>
-                    </ul>
-                </div>
-            </div>
             <div class="footer-copyright">
-                <p>© 2024 DECODE Project. Funded by the National Institute for Health and Care Research (NIHR).</p>
+                <p>© 2024 DECODE Project. Loughborough University. Funded by the National Institute for Health and Care Research (NIHR). </p>
             </div>
         </div>
         """,
