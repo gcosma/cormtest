@@ -806,7 +806,6 @@ def main():
         .control-panel {
             padding: 1.5rem;
             border-radius: 8px;
-            border: 1px solid #e9ecef;
             height: 100%;
         }
         .control-panel h3 {
