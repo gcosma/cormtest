@@ -799,114 +799,145 @@ def main():
 
     # Custom CSS
     st.markdown("""
-    <style>
-    /* Base Styles */
-    .main {
-        padding: 2rem;
-    }
-    
-    /* Control Panel Container */
-    .control-panel {
-        background-color: #ffffff;
-        border: 1px solid #e0e0e0;
-        border-radius: 12px;
-        padding: 1.5rem;
-        height: 100%;
-        margin-top: 1rem;  /* Reduced from 3.7rem to remove grey space */
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-    }
-    
-    /* Control Panel Header */
-    .control-panel h3 {
-        color: #333333;
-        font-size: 1.25rem;
-        font-weight: 600;
-        margin-bottom: 1.5rem;
-        padding-bottom: 0.75rem;
-        border-bottom: 2px solid #f1f5f9;
-        letter-spacing: 0.025em;
-    }
-    
-    /* Number Input Customization */
-    .stNumberInput > div > div > input {
-        background-color: transparent !important;
-        border: 1px solid #e0e0e0;
-        border-radius: 8px;
-        padding: 0.5rem;
-        color: black !important;
-    }
-    
-    /* Slider Customization */
-    .stSlider input {
-        color: black !important;
-    }
-    
-    .stSlider [data-baseweb="slider"] {
-        background-color: transparent !important;
-    }
-    
-    /* Number Input Focus State */
-    .stNumberInput > div > div > input:focus {
-        border-color: #666666;
-        box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.05);
-        background-color: transparent !important;
-        color: black !important;
-    }
-    
-    /* Slider Track and Handle */
-    .stSlider > div > div > div > div {
-        background-color: #f0f0f0;
-    }
-    
-    .stSlider > div > div > div > div > div {
-        background-color: #666666;
-        border: 2px solid #ffffff;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-    
-    /* Remove any background from slider number inputs */
-    .stSlider input[type="number"] {
-        background-color: transparent !important;
-        color: black !important;
-    }
-    
-    /* Slider Step Number Background */
-    .stSlider [data-baseweb="slider"] [role="slider"] {
-        background-color: transparent !important;
-        color: black !important;
-    }
-    
-    /* Rest of your existing CSS remains the same */
-    /* Button Styles */
-    .stButton > button {
-        width: 100%;
-        height: 3rem;
-        margin: 1rem 0;
-        background: #f5f5f5;
-        color: #333333;
-        border: 1px solid #e0e0e0;
-        border-radius: 8px;
-        font-weight: 600;
-        letter-spacing: 0.025em;
-        text-transform: uppercase;
-        font-size: 0.875rem;
-        transition: all 0.2s ease;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    }
-    
-    /* Make sure scrollbar numbers are visible */
-    input[type="number"]::-webkit-inner-spin-button,
-    input[type="number"]::-webkit-outer-spin-button {
-        opacity: 1;
-        background-color: transparent;
-        color: black;
-    }
-    
-    [data-testid="stThumbValue"] {
-        color: black !important;
-        background-color: transparent !important;
-    }
-    </style>
+        <style>
+            /* Base Styles */
+            .main {
+                padding: 2rem;
+            }
+            
+            /* Control Panel Container */
+            .control-panel {
+                background-color: #ffffff;
+                border: 1px solid #e0e0e0;
+                border-radius: 12px;
+                padding: 1.5rem;
+                height: 100%;
+                margin-top: 0;  /* Changed from 1rem to 0 to remove space completely */
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            }
+            
+            /* Override Streamlit's default spacing */
+            .css-1544g2n {
+                margin-top: 0 !important;
+                padding-top: 0 !important;
+            }
+            
+            .css-1n76uvr {
+                margin-top: 0 !important;
+            }
+            
+            /* Control Panel Header */
+            .control-panel h3 {
+                color: #333333;
+                font-size: 1.25rem;
+                font-weight: 600;
+                margin-bottom: 1.5rem;
+                padding-bottom: 0.75rem;
+                border-bottom: 2px solid #f1f5f9;
+                letter-spacing: 0.025em;
+            }
+            
+            /* Number Input and Slider Customization */
+            .stNumberInput > div > div > input {
+                background-color: transparent !important;
+                border: 1px solid #e0e0e0;
+                border-radius: 8px;
+                padding: 0.5rem;
+                color: black !important;
+            }
+            
+            /* Override the default slider colors */
+            .stSlider [data-testid="stThumbValue"] {
+                background: transparent !important;
+                color: black !important;
+            }
+            
+            /* Remove colored backgrounds from slider */
+            .stSlider > div > div > div[data-testid="stTickBar"] > div {
+                background: transparent !important;
+            }
+            
+            .stSlider > div > div > div > div[data-testid="stTickBar"] {
+                background: transparent !important;
+            }
+            
+            /* Style the slider track */
+            .stSlider > div > div > div > div {
+                background-color: #e0e0e0 !important;
+            }
+            
+            /* Style the slider handle */
+            .stSlider > div > div > div > div > div {
+                background-color: #666666 !important;
+                border: 2px solid #ffffff !important;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+            }
+            
+            /* Remove any colored backgrounds from inputs */
+            .stSlider input[type="number"] {
+                background: transparent !important;
+                color: black !important;
+                border: none !important;
+            }
+            
+            /* Override Streamlit's default container padding */
+            .element-container {
+                margin-top: 0 !important;
+            }
+            
+            /* Make sure text inputs and selections are visible */
+            .stTextInput > div > div > input,
+            .stSelectbox > div > div {
+                background-color: white !important;
+                color: black !important;
+            }
+            
+            /* Button Styles */
+            .stButton > button {
+                width: 100%;
+                height: 3rem;
+                margin: 1rem 0;
+                background: #f5f5f5;
+                color: #333333;
+                border: 1px solid #e0e0e0;
+                border-radius: 8px;
+                font-weight: 600;
+                letter-spacing: 0.025em;
+                text-transform: uppercase;
+                font-size: 0.875rem;
+                transition: all 0.2s ease;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            }
+            
+            /* Make sure spin buttons are visible */
+            input[type="number"]::-webkit-inner-spin-button,
+            input[type="number"]::-webkit-outer-spin-button {
+                opacity: 1 !important;
+                background: transparent !important;
+            }
+            
+            /* Override any remaining colored backgrounds */
+            [data-testid="stFormSubmitButton"] > button {
+                background-color: #ffffff !important;
+            }
+            
+            /* Remove any remaining default Streamlit backgrounds */
+            .stApp {
+                background-color: white !important;
+            }
+            
+            div[data-testid="stToolbar"] {
+                visibility: hidden;
+            }
+            
+            div[data-testid="stDecoration"] {
+                visibility: hidden;
+            }
+            
+            div[data-testid="stStatusWidget"] {
+                visibility: hidden;
+            }
+        </style>
     """, unsafe_allow_html=True)
 
     # Header
