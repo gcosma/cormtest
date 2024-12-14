@@ -804,7 +804,6 @@ def main():
             padding: 2rem;
         }
         .control-panel {
-            background-color: #f8f9fa;
             padding: 1.5rem;
             border-radius: 8px;
             border: 1px solid #e9ecef;
