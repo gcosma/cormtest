@@ -132,14 +132,14 @@ def load_and_process_data(uploaded_file):
         return None, None, None, None
 
 @st.cache_data
-def perform_sensitivity_analysis(data):
-    """Perform sensitivity analysis with corrected calculations"""
+def perform_sensitivity_analysis(data, top_n=5):
+    """Perform sensitivity analysis with configurable number of top trajectories"""
     or_thresholds = [2.0, 3.0, 4.0, 5.0]
     results = []
     total_patients = data['TotalPatientsInGroup'].iloc[0]
 
-    # Get top 5 patterns from full dataset first
-    top_patterns = data.nlargest(5, 'OddsRatio')[
+    # Get top n patterns from full dataset first
+    top_patterns = data.nlargest(top_n, 'OddsRatio')[
         ['ConditionA', 'ConditionB', 'OddsRatio', 'PairFrequency',
          'MedianDurationYearsWithIQR', 'DirectionalPercentage', 'Precedence']
     ].to_dict('records')
@@ -782,6 +782,8 @@ def main():
         st.session_state.unique_conditions = []
     if 'data_hash' not in st.session_state:
         st.session_state.data_hash = None
+    if 'top_n_trajectories' not in st.session_state:
+        st.session_state.top_n_trajectories = 5
 
     # Page configuration
     st.set_page_config(
@@ -908,6 +910,16 @@ def main():
 
                     with analysis_col2:
                         st.markdown("### Control Panel")
+                        top_n = st.slider(
+                            "Number of Top Trajectories",
+                            min_value=1,
+                            max_value=20,
+                            value=st.session_state.top_n_trajectories,
+                            step=1,
+                            help="Select how many top trajectories to display"
+                        )
+                        st.session_state.top_n_trajectories = top_n
+                        
                         analyze_button = st.button(
                             "🚀 Run Analysis",
                             key="run_sensitivity",
@@ -921,8 +933,8 @@ def main():
                                     # Clear previous results
                                     st.session_state.sensitivity_results = None
                                     
-                                    # Generate new results
-                                    results = perform_sensitivity_analysis(data)
+                                    # Generate new results with selected top_n
+                                    results = perform_sensitivity_analysis(data, top_n=top_n)
                                     st.session_state.sensitivity_results = results
 
                                     display_df = results.drop('Top_Patterns', axis=1)
@@ -931,7 +943,7 @@ def main():
                                         display_df.style.background_gradient(cmap='YlOrRd', subset=['Coverage_Percent'])
                                     )
 
-                                    st.subheader("Top 5 Strongest Trajectories")
+                                    st.subheader(f"Top {top_n} Strongest Trajectories")
                                     patterns_df = pd.DataFrame(results.iloc[0]['Top_Patterns'])
                                     st.dataframe(
                                         patterns_df.style.background_gradient(cmap='YlOrRd', subset=['OddsRatio'])
@@ -958,7 +970,8 @@ def main():
                                     display_df.style.background_gradient(cmap='YlOrRd', subset=['Coverage_Percent'])
                                 )
 
-                                st.subheader("Top 5 Strongest Trajectories")
+                                num_patterns = len(results.iloc[0]['Top_Patterns'])
+                                st.subheader(f"Top {num_patterns} Strongest Trajectories")
                                 patterns_df = pd.DataFrame(results.iloc[0]['Top_Patterns'])
                                 st.dataframe(
                                     patterns_df.style.background_gradient(cmap='YlOrRd', subset=['OddsRatio'])
