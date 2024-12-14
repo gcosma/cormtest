@@ -758,14 +758,6 @@ def add_footer():
     st.markdown(
         """
         <div class="footer">
-            <div class="footer-content">
-                <div>
-                    <h3>About DECODE</h3>
-                    <p>A collaborative research project funded by the National Institute for Health 
-                    and Care Research (NIHR) that brings together researchers, clinicians and patients 
-                    to develop and enhance care coordination for people with intellectual disabilities 
-                    and multiple long term conditions.</p>
-                </div>
             <div class="footer-copyright">
                 <p>© 2024 DECODE Project. Loughborough University. Funded by the National Institute for Health and Care Research (NIHR). </p>
             </div>
