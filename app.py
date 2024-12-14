@@ -812,7 +812,7 @@ def main():
         border-radius: 12px;
         padding: 1.5rem;
         height: 100%;
-        margin-top: 3.7rem;
+        margin-top: 1rem;  /* Reduced from 3.7rem to remove grey space */
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
     }
     
@@ -827,23 +827,56 @@ def main():
         letter-spacing: 0.025em;
     }
     
-    /* Slider Customization */
-    .stSlider {
-        padding: 1rem 0;
+    /* Number Input Customization */
+    .stNumberInput > div > div > input {
+        background-color: transparent !important;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 0.5rem;
+        color: black !important;
     }
     
-    /* Slider Track */
+    /* Slider Customization */
+    .stSlider input {
+        color: black !important;
+    }
+    
+    .stSlider [data-baseweb="slider"] {
+        background-color: transparent !important;
+    }
+    
+    /* Number Input Focus State */
+    .stNumberInput > div > div > input:focus {
+        border-color: #666666;
+        box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.05);
+        background-color: transparent !important;
+        color: black !important;
+    }
+    
+    /* Slider Track and Handle */
     .stSlider > div > div > div > div {
         background-color: #f0f0f0;
     }
     
-    /* Slider Handle */
     .stSlider > div > div > div > div > div {
         background-color: #666666;
         border: 2px solid #ffffff;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
     
+    /* Remove any background from slider number inputs */
+    .stSlider input[type="number"] {
+        background-color: transparent !important;
+        color: black !important;
+    }
+    
+    /* Slider Step Number Background */
+    .stSlider [data-baseweb="slider"] [role="slider"] {
+        background-color: transparent !important;
+        color: black !important;
+    }
+    
+    /* Rest of your existing CSS remains the same */
     /* Button Styles */
     .stButton > button {
         width: 100%;
@@ -861,159 +894,17 @@ def main():
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     }
     
-    .stButton > button:hover {
-        background: #ebebeb;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        transform: translateY(-1px);
-    }
-    
-    .stButton > button:active {
-        transform: translateY(0);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    }
-    
-    /* Select Box Customization */
-    .stSelectbox > div > div {
-        background-color: #ffffff;
-        border: 1px solid #e0e0e0;
-        border-radius: 8px;
-        padding: 0.5rem;
-    }
-    
-    .stSelectbox > div > div:hover {
-        border-color: #666666;
-    }
-    
-    /* Number Input Customization */
-    .stNumberInput > div > div > input {
-        background-color: #ffffff;
-        border: 1px solid #e0e0e0;
-        border-radius: 8px;
-        padding: 0.5rem;
-    }
-    
-    .stNumberInput > div > div > input:focus {
-        border-color: #666666;
-        box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.05);
-    }
-    
-    /* Help Text */
-    .stMarkdown div.stMarkdown {
-        color: #333333;
-        font-size: 0.875rem;
-        line-height: 1.25rem;
-    }
-    
-    /* Tabs Customization */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 2rem;
-        padding: 1rem 0;
+    /* Make sure scrollbar numbers are visible */
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+        opacity: 1;
         background-color: transparent;
+        color: black;
     }
     
-    .stTabs [data-baseweb="tab"] {
-        height: 4rem;
-        white-space: pre-wrap;
-        background-color: #f8f8f8;
-        border-radius: 8px;
-        transition: all 0.2s ease;
-        border: 1px solid #e0e0e0;
-        color: #333333;
-    }
-    
-    .stTabs [data-baseweb="tab"]:hover {
-        background-color: #f0f0f0;
-        border-color: #666666;
-    }
-    
-    .stTabs [data-baseweb="tab"][aria-selected="true"] {
-        background: #f0f0f0;
-        color: #000000;
-        border: 1px solid #666666;
-    }
-    
-    /* Slider Labels */
-    .stSlider > div > div > div > div[data-testid="stTickBar"] > div {
-        color: #333333;
-        font-size: 0.875rem;
-    }
-    
-    /* Help Icons */
-    .stTooltipIcon {
-        color: #666666;
-    }
-    
-    .stTooltipIcon:hover {
-        color: #333333;
-    }
-    
-    /* Control Group Spacing */
-    .control-group {
-        margin-bottom: 1.5rem;
-        padding-bottom: 1.5rem;
-        border-bottom: 1px solid #f1f5f9;
-    }
-    
-    .control-group:last-child {
-        margin-bottom: 0;
-        padding-bottom: 0;
-        border-bottom: none;
-    }
-    
-    /* Info Messages */
-    .element-container:has(div.stAlert) {
-        background-color: #f8f8f8;
-        border-radius: 8px;
-        padding: 1rem;
-        margin: 1rem 0;
-    }
-    
-    /* Loading Spinner */
-    .stSpinner > div {
-        border-color: #666666;
-    }
-    
-    /* File Uploader */
-    .stFileUploader > div {
-        background-color: #f8f8f8;
-        border: 2px dashed #e0e0e0;
-        border-radius: 12px;
-        padding: 2rem;
-        transition: all 0.2s ease;
-    }
-    
-    .stFileUploader > div:hover {
-        border-color: #666666;
-        background-color: #f0f0f0;
-    }
-    
-    /* Download Button */
-    .stDownloadButton > button {
-        background: #f5f5f5;
-        color: #333333;
-    }
-    
-    .stDownloadButton > button:hover {
-        background: #ebebeb;
-    }
-    
-    /* Multiselect */
-    .stMultiSelect > div > div {
-        background-color: #ffffff;
-        border: 1px solid #e0e0e0;
-        border-radius: 8px;
-    }
-    
-    .stMultiSelect > div > div:hover {
-        border-color: #666666;
-    }
-    
-    /* Widget Labels */
-    .stWidgetLabel {
-        color: #333333;
-        font-weight: 500;
-        font-size: 0.95rem;
-        margin-bottom: 0.5rem;
+    [data-testid="stThumbValue"] {
+        color: black !important;
+        background-color: transparent !important;
     }
     </style>
     """, unsafe_allow_html=True)
