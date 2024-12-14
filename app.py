@@ -776,7 +776,7 @@ def main():
 
     # Check password before showing any content
     if not check_password():
-        st.stop()  # Don't continue if password check fails
+        st.stop()
 
     # Custom CSS
     st.markdown("""
@@ -832,174 +832,209 @@ def main():
     Upload your data file to begin analysis.
     """)
 
-    # File uploader in a container
-    with st.container():
-        uploaded_file = st.file_uploader(
-            "Choose a CSV file",
-            type="csv",
-            help="Upload a CSV file containing your patient data"
-        )
+    try:
+        # File uploader in a container
+        with st.container():
+            uploaded_file = st.file_uploader(
+                "Choose a CSV file",
+                type="csv",
+                help="Upload a CSV file containing your patient data"
+            )
 
-    if uploaded_file is not None:
-        # Load and process data
-        data, total_patients, gender, age_group = load_and_process_data(uploaded_file)
+        if uploaded_file is not None:
+            try:
+                # Load and process data
+                data, total_patients, gender, age_group = load_and_process_data(uploaded_file)
 
-        if data is not None:
-            # Data summary in an info box
-            st.info(f"""
-            📊 **Data Summary**
-            - Total Patients: {total_patients:,}
-            - Gender: {gender}
-            - Age Group: {age_group}
-            """)
+                if data is None:
+                    st.error("Failed to load data. Please check your file format.")
+                    st.stop()
 
-            # Create tabs with icons
-            tabs = st.tabs([
-                "📈 Sensitivity Analysis",
-                "🔍 Condition Combinations",
-                "👤 Personalised Analysis",
-                "🎯 Custom Trajectory Filter"
-            ])
-
-            # Sensitivity Analysis Tab
-            with tabs[0]:
-                st.header("Sensitivity Analysis")
-                st.markdown("""
-                Explore how different odds ratio thresholds affect the number of disease
-                trajectories and population coverage.
+                # Data summary in an info box
+                st.info(f"""
+                📊 **Data Summary**
+                - Total Patients: {total_patients:,}
+                - Gender: {gender}
+                - Age Group: {age_group}
                 """)
 
-                analysis_col1, analysis_col2 = st.columns([3, 1])
+                # Create tabs with icons
+                tabs = st.tabs([
+                    "📈 Sensitivity Analysis",
+                    "🔍 Condition Combinations",
+                    "👤 Personalised Analysis",
+                    "🎯 Custom Trajectory Filter"
+                ])
 
-                with analysis_col2:
-                    st.markdown("### Control Panel")
-                    analyze_button = st.button(
-                        "🚀 Run Analysis",
-                        key="run_sensitivity",
-                        help="Click to perform sensitivity analysis"
-                    )
+                # Sensitivity Analysis Tab
+                with tabs[0]:
+                    st.header("Sensitivity Analysis")
+                    st.markdown("""
+                    Explore how different odds ratio thresholds affect the number of disease
+                    trajectories and population coverage.
+                    """)
 
-                with analysis_col1:
-                    # Show previous results if they exist
-                    if st.session_state.sensitivity_results is not None:
-                        results = st.session_state.sensitivity_results
-                        st.subheader("Analysis Results")
-                        display_df = results.drop('Top_Patterns', axis=1)
-                        st.dataframe(
-                            display_df.style.background_gradient(cmap='YlOrRd', subset=['Coverage_Percent'])
-                        )
-                        st.subheader("Top 5 Strongest Trajectories")
-                        patterns_df = pd.DataFrame(results.iloc[0]['Top_Patterns'])
-                        st.dataframe(
-                            patterns_df.style.background_gradient(cmap='YlOrRd', subset=['OddsRatio'])
-                        )
-                        fig = create_sensitivity_plot(results)
-                        st.pyplot(fig)
+                    analysis_col1, analysis_col2 = st.columns([3, 1])
 
-                        csv = display_df.to_csv(index=False)
-                        st.download_button(
-                            label="📥 Download Results",
-                            data=csv,
-                            file_name="sensitivity_analysis_results.csv",
-                            mime="text/csv"
+                    with analysis_col2:
+                        st.markdown("### Control Panel")
+                        analyze_button = st.button(
+                            "🚀 Run Analysis",
+                            key="run_sensitivity",
+                            help="Click to perform sensitivity analysis"
                         )
 
-                    if analyze_button:
-                        with st.spinner("💫 Analyzing data..."):
-                            results = perform_sensitivity_analysis(data)
-                            st.session_state.sensitivity_results = results
+                    with analysis_col1:
+                        try:
+                            if analyze_button:
+                                with st.spinner("💫 Analyzing data..."):
+                                    # Clear previous results
+                                    st.session_state.sensitivity_results = None
+                                    
+                                    # Generate new results
+                                    results = perform_sensitivity_analysis(data)
+                                    st.session_state.sensitivity_results = results
 
-                            st.subheader("Analysis Results")
-                            display_df = results.drop('Top_Patterns', axis=1)
-                            st.dataframe(
-                                display_df.style.background_gradient(cmap='YlOrRd', subset=['Coverage_Percent'])
+                                    display_df = results.drop('Top_Patterns', axis=1)
+                                    st.subheader("Analysis Results")
+                                    st.dataframe(
+                                        display_df.style.background_gradient(cmap='YlOrRd', subset=['Coverage_Percent'])
+                                    )
+
+                                    st.subheader("Top 5 Strongest Trajectories")
+                                    patterns_df = pd.DataFrame(results.iloc[0]['Top_Patterns'])
+                                    st.dataframe(
+                                        patterns_df.style.background_gradient(cmap='YlOrRd', subset=['OddsRatio'])
+                                    )
+
+                                    fig = create_sensitivity_plot(results)
+                                    st.pyplot(fig)
+
+                                    csv = display_df.to_csv(index=False)
+                                    st.download_button(
+                                        label="📥 Download Results",
+                                        data=csv,
+                                        file_name="sensitivity_analysis_results.csv",
+                                        mime="text/csv"
+                                    )
+                            
+                            # Display existing results if available
+                            elif st.session_state.sensitivity_results is not None:
+                                results = st.session_state.sensitivity_results
+                                display_df = results.drop('Top_Patterns', axis=1)
+                                
+                                st.subheader("Analysis Results")
+                                st.dataframe(
+                                    display_df.style.background_gradient(cmap='YlOrRd', subset=['Coverage_Percent'])
+                                )
+
+                                st.subheader("Top 5 Strongest Trajectories")
+                                patterns_df = pd.DataFrame(results.iloc[0]['Top_Patterns'])
+                                st.dataframe(
+                                    patterns_df.style.background_gradient(cmap='YlOrRd', subset=['OddsRatio'])
+                                )
+
+                                fig = create_sensitivity_plot(results)
+                                st.pyplot(fig)
+
+                                csv = display_df.to_csv(index=False)
+                                st.download_button(
+                                    label="📥 Download Results",
+                                    data=csv,
+                                    file_name="sensitivity_analysis_results.csv",
+                                    mime="text/csv"
+                                )
+
+                        except Exception as e:
+                            st.error(f"Error in sensitivity analysis: {str(e)}")
+                            st.session_state.sensitivity_results = None
+                            st.stop()
+
+                # Condition Combinations Tab
+                with tabs[1]:
+                    st.header("Condition Combinations Analysis")
+
+                    param_col, results_col = st.columns([1, 3])
+
+                    with param_col:
+                        st.markdown("### Analysis Parameters")
+
+                        try:
+                            min_freq_range = (data['PairFrequency'].min(), data['PairFrequency'].max())
+                            min_frequency = st.slider(
+                                "Minimum Pair Frequency",
+                                int(min_freq_range[0]),
+                                int(min_freq_range[1]),
+                                int(min_freq_range[0]) if st.session_state.min_frequency is None
+                                else st.session_state.min_frequency,
+                                help="Minimum number of occurrences required"
                             )
-                            st.subheader("Top 5 Strongest Trajectories")
-                            patterns_df = pd.DataFrame(results.iloc[0]['Top_Patterns'])
-                            st.dataframe(
-                                patterns_df.style.background_gradient(cmap='YlOrRd', subset=['OddsRatio'])
+                            st.session_state.min_frequency = min_frequency
+
+                            min_percentage_range = (data['Percentage'].min(), data['Percentage'].max())
+                            min_percentage = st.slider(
+                                "Minimum Prevalence (%)",
+                                float(min_percentage_range[0]),
+                                float(min_percentage_range[1]),
+                                float(min_percentage_range[0]) if st.session_state.min_percentage is None
+                                else st.session_state.min_percentage,
+                                0.1,
+                                help="Minimum percentage of population affected"
                             )
-                            fig = create_sensitivity_plot(results)
-                            st.pyplot(fig)
+                            st.session_state.min_percentage = min_percentage
 
-                            csv = display_df.to_csv(index=False)
-                            st.download_button(
-                                label="📥 Download Results",
-                                data=csv,
-                                file_name="sensitivity_analysis_results.csv",
-                                mime="text/csv"
-                            )
-
-            # Condition Combinations Tab
-            with tabs[1]:
-                st.header("Condition Combinations Analysis")
-
-                param_col, results_col = st.columns([1, 3])
-
-                with param_col:
-                    st.markdown("### Analysis Parameters")
-
-                    min_freq_range = (data['PairFrequency'].min(), data['PairFrequency'].max())
-                    min_frequency = st.slider(
-                        "Minimum Pair Frequency",
-                        int(min_freq_range[0]),
-                        int(min_freq_range[1]),
-                        int(min_freq_range[0]) if st.session_state.min_frequency is None
-                        else st.session_state.min_frequency,
-                        help="Minimum number of occurrences required"
-                    )
-                    st.session_state.min_frequency = min_frequency
-
-                    min_percentage_range = (data['Percentage'].min(), data['Percentage'].max())
-                    min_percentage = st.slider(
-                        "Minimum Prevalence (%)",
-                        float(min_percentage_range[0]),
-                        float(min_percentage_range[1]),
-                        float(min_percentage_range[0]) if st.session_state.min_percentage is None
-                        else st.session_state.min_percentage,
-                        0.1,
-                        help="Minimum percentage of population affected"
-                    )
-                    st.session_state.min_percentage = min_percentage
-
-                    analyze_combinations_button = st.button(
-                        "🔍 Analyze Combinations",
-                        help="Click to analyze condition combinations"
-                    )
-
-                with results_col:
-                    # Show previous results if they exist
-                    if st.session_state.combinations_results is not None:
-                        results_df = st.session_state.combinations_results
-                        st.subheader(f"Analysis Results ({len(results_df)} combinations)")
-                        st.dataframe(
-                            results_df.style.background_gradient(
-                                cmap='YlOrRd',
-                                subset=['Prevalence of the combination (%)']
-                            ),
-                            width=1200
-                        )
-                        if st.session_state.combinations_fig is not None:
-                            st.pyplot(st.session_state.combinations_fig)
-
-                        csv = results_df.to_csv(index=False)
-                        st.download_button(
-                            label="📥 Download Results",
-                            data=csv,
-                            file_name="condition_combinations.csv",
-                            mime="text/csv"
-                        )
-
-                    if analyze_combinations_button:
-                        with st.spinner("🔄 Analyzing combinations..."):
-                            results_df = analyze_condition_combinations(
-                                data,
-                                min_percentage,
-                                min_frequency
+                            analyze_combinations_button = st.button(
+                                "🔍 Analyze Combinations",
+                                help="Click to analyze condition combinations"
                             )
 
-                            if not results_df.empty:
-                                st.session_state.combinations_results = results_df
+                        except Exception as e:
+                            st.error(f"Error setting up analysis parameters: {str(e)}")
+                            st.stop()
+
+                    with results_col:
+                        try:
+                            if analyze_combinations_button:
+                                with st.spinner("🔄 Analyzing combinations..."):
+                                    # Clear previous results
+                                    st.session_state.combinations_results = None
+                                    st.session_state.combinations_fig = None
+                                    
+                                    # Generate new results
+                                    results_df = analyze_condition_combinations(
+                                        data,
+                                        min_percentage,
+                                        min_frequency
+                                    )
+
+                                    if not results_df.empty:
+                                        st.session_state.combinations_results = results_df
+                                        
+                                        st.subheader(f"Analysis Results ({len(results_df)} combinations)")
+                                        st.dataframe(
+                                            results_df.style.background_gradient(
+                                                cmap='YlOrRd',
+                                                subset=['Prevalence of the combination (%)']
+                                            )
+                                        )
+
+                                        fig = create_combinations_plot(results_df)
+                                        st.session_state.combinations_fig = fig
+                                        st.pyplot(fig)
+
+                                        csv = results_df.to_csv(index=False)
+                                        st.download_button(
+                                            label="📥 Download Results",
+                                            data=csv,
+                                            file_name="condition_combinations.csv",
+                                            mime="text/csv"
+                                        )
+                                    else:
+                                        st.warning("No combinations found matching the criteria. Try adjusting the parameters.")
+                            
+                            # Display existing results if available
+                            elif st.session_state.combinations_results is not None:
+                                results_df = st.session_state.combinations_results
                                 st.subheader(f"Analysis Results ({len(results_df)} combinations)")
                                 st.dataframe(
                                     results_df.style.background_gradient(
@@ -1008,9 +1043,8 @@ def main():
                                     )
                                 )
 
-                                fig = create_combinations_plot(results_df)
-                                st.session_state.combinations_fig = fig
-                                st.pyplot(fig)
+                                if st.session_state.combinations_fig is not None:
+                                    st.pyplot(st.session_state.combinations_fig)
 
                                 csv = results_df.to_csv(index=False)
                                 st.download_button(
@@ -1019,205 +1053,246 @@ def main():
                                     file_name="condition_combinations.csv",
                                     mime="text/csv"
                                 )
-                            else:
-                                st.warning("No combinations found matching the criteria.")
 
-            # Personalized Analysis Tab
-            with tabs[2]:
-                st.header("Personalized Trajectory Analysis")
-                st.markdown("""
-                Analyze potential disease progressions based on a patient's current conditions,
-                considering population-level statistics and time-based progression patterns.
-                """)
+                        except Exception as e:
+                            st.error(f"Error in combinations analysis: {str(e)}")
+                            st.session_state.combinations_results = None
+                            st.session_state.combinations_fig = None
+                            st.stop()
 
-                # Use full width for analysis display
-                st.markdown("### Select Parameters")
-                param_container = st.container()
+                # Personalized Analysis Tab
+                with tabs[2]:
+                    st.header("Personalized Trajectory Analysis")
+                    st.markdown("""
+                    Analyze potential disease progressions based on a patient's current conditions,
+                    considering population-level statistics and time-based progression patterns.
+                    """)
 
-                with param_container:
-                    col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
+                    try:
+                        st.markdown("### Select Parameters")
+                        param_container = st.container()
 
-                    with col1:
-                        min_or = st.slider(
-                            "Minimum Odds Ratio",
-                            1.0, 10.0, st.session_state.min_or, 0.5,
-                            key="personal_min_or",
-                            help="Filter trajectories by minimum odds ratio"
-                        )
-                        st.session_state.min_or = min_or
+                        with param_container:
+                            col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
 
-                    with col2:
-                        max_years = math.ceil(data['MedianDurationYearsWithIQR'].apply(lambda x: parse_iqr(x)[0]).max())
-                        time_horizon = st.slider(
-                            "Time Horizon (years)",
-                            1, max_years, st.session_state.time_horizon,
-                            key="personal_time_horizon",
-                            help="Maximum time period to consider"
-                        )
-                        st.session_state.time_horizon = time_horizon
-
-                    with col3:
-                        time_margin = st.slider(
-                            "Time Margin",
-                            0.0, 0.5, st.session_state.time_margin, 0.05,
-                            key="personal_time_margin",
-                            help="Allowable variation in time predictions"
-                        )
-                        st.session_state.time_margin = time_margin
-
-                    with col4:
-                        analyze_button = st.button(
-                            "🔍 Analyze Trajectories",
-                            key="personal_analyze",
-                            help="Generate personalized analysis"
-                        )
-
-                # Condition selection below parameters
-                unique_conditions = sorted(set(data['ConditionA'].unique()) | set(data['ConditionB'].unique()))
-                selected_conditions = st.multiselect(
-                    "Select Current Conditions",
-                    unique_conditions,
-                    default=st.session_state.selected_conditions,
-                    key="personal_select",
-                    help="Choose the patient's current conditions"
-                )
-                st.session_state.selected_conditions = selected_conditions
-
-                # Show previous analysis if it exists
-                if st.session_state.personalized_html is not None:
-                    html_container = f"""
-                    <div style="min-height: 800px; width: 100%; padding: 20px;">
-                        {st.session_state.personalized_html}
-                    </div>
-                    """
-                    st.components.v1.html(html_container, height=1200, scrolling=True)
-
-                    st.download_button(
-                        label="📥 Download Analysis",
-                        data=st.session_state.personalized_html,
-                        file_name="personalized_trajectory_analysis.html",
-                        mime="text/html"
-                    )
-
-                # Analysis results
-                if selected_conditions and analyze_button:
-                    with st.spinner("🔄 Generating personalized analysis..."):
-                        html_content = create_personalized_analysis(
-                            data,
-                            selected_conditions,
-                            time_horizon,
-                            time_margin,
-                            min_or
-                        )
-                        st.session_state.personalized_html = html_content
-
-                        # Add container styling and increase height
-                        html_container = f"""
-                        <div style="min-height: 800px; width: 100%; padding: 20px;">
-                            {html_content}
-                        </div>
-                        """
-                        st.components.v1.html(html_container, height=1200, scrolling=True)
-                        st.download_button(
-                            label="📥 Download Analysis",
-                            data=html_content,
-                            file_name="personalized_trajectory_analysis.html",
-                            mime="text/html"
-                        )
-
-            # Custom Trajectory Filter Tab
-            with tabs[3]:
-                st.header("Custom Trajectory Filter")
-                st.markdown("""
-                Visualize disease trajectories based on custom odds ratio and frequency thresholds.
-                Select conditions and adjust filters to explore different trajectory patterns.
-                """)
-
-                viz_col, param_col = st.columns([3, 1])
-
-                with param_col:
-                    st.markdown("### Parameters")
-                    min_or = st.slider(
-                        "Minimum Odds Ratio",
-                        1.0, 10.0, st.session_state.min_or, 0.5,
-                        key="custom_min_or",
-                        help="Filter trajectories by minimum odds ratio"
-                    )
-
-                    min_freq = st.slider(
-                        "Minimum Frequency",
-                        int(data['PairFrequency'].min()),
-                        int(data['PairFrequency'].max()),
-                        int(data['PairFrequency'].min()),
-                        help="Minimum number of occurrences required"
-                    )
-
-                    # Filter data based on both OR and frequency
-                    filtered_data = data[
-                        (data['OddsRatio'] >= min_or) &
-                        (data['PairFrequency'] >= min_freq)
-                    ]
-
-                    # Get conditions from filtered data
-                    unique_conditions = sorted(set(
-                        filtered_data['ConditionA'].unique()) |
-                        set(filtered_data['ConditionB'].unique())
-                    )
-
-                    selected_conditions = st.multiselect(
-                        "Select Initial Conditions",
-                        unique_conditions,
-                        default=st.session_state.selected_conditions,
-                        key="custom_select",
-                        help="Choose the starting conditions for trajectory analysis"
-                    )
-                    st.session_state.selected_conditions = selected_conditions
-
-                    if selected_conditions:
-                        max_years = math.ceil(filtered_data['MedianDurationYearsWithIQR']
-                                            .apply(lambda x: parse_iqr(x)[0]).max())
-                        time_horizon = st.slider(
-                            "Time Horizon (years)",
-                            1, max_years, st.session_state.time_horizon,
-                            key="custom_time_horizon",
-                            help="Maximum time period to consider"
-                        )
-
-                        time_margin = st.slider(
-                            "Time Margin",
-                            0.0, 0.5, st.session_state.time_margin, 0.05,
-                            key="custom_time_margin",
-                            help="Allowable variation in time predictions"
-                        )
-
-                        generate_button = st.button(
-                            "🔄 Generate Network",
-                            key="custom_generate",
-                            help="Click to generate trajectory network"
-                        )
-
-                with viz_col:
-                    if selected_conditions and generate_button:
-                        with st.spinner("🌐 Generating network..."):
-                            try:
-                                # Use filtered data instead of original data
-                                html_content = create_network_graph(
-                                    filtered_data,  # Use filtered data here
-                                    selected_conditions,
-                                    min_or,
-                                    time_horizon,
-                                    time_margin
+                            with col1:
+                                min_or = st.slider(
+                                    "Minimum Odds Ratio",
+                                    1.0, 10.0, st.session_state.min_or, 0.5,
+                                    key="personal_min_or",
+                                    help="Filter trajectories by minimum odds ratio"
                                 )
-                                st.components.v1.html(html_content, height=800)
+                                st.session_state.min_or = min_or
 
+                            with col2:
+                                max_years = math.ceil(data['MedianDurationYearsWithIQR'].apply(lambda x: parse_iqr(x)[0]).max())
+                                time_horizon = st.slider(
+                                    "Time Horizon (years)",
+                                    1, max_years, st.session_state.time_horizon,
+                                    key="personal_time_horizon",
+                                    help="Maximum time period to consider"
+                                )
+                                st.session_state.time_horizon = time_horizon
+
+                            with col3:
+                                time_margin = st.slider(
+                                    "Time Margin",
+                                    0.0, 0.5, st.session_state.time_margin, 0.05,
+                                    key="personal_time_margin",
+                                    help="Allowable variation in time predictions"
+                                )
+                                st.session_state.time_margin = time_margin
+
+                            with col4:
+                                analyze_button = st.button(
+                                    "🔍 Analyze Trajectories",
+                                    key="personal_analyze",
+                                    help="Generate personalized analysis"
+                                )
+
+                        unique_conditions = sorted(set(data['ConditionA'].unique()) | set(data['ConditionB'].unique()))
+                        selected_conditions = st.multiselect(
+                            "Select Current Conditions",
+                            unique_conditions,
+                            default=st.session_state.selected_conditions,
+                            key="personal_select",
+                            help="Choose the patient's current conditions"
+                        )
+                        st.session_state.selected_conditions = selected_conditions
+
+                        if selected_conditions and analyze_button:
+                            with st.spinner("🔄 Generating personalized analysis..."):
+                                # Clear previous results
+                                st.session_state.personalized_html = None
+                                
+                                # Generate new analysis
+                                html_content = create_personalized_analysis(
+                                    data,
+                                    selected_conditions,
+                                    time_horizon,
+                                    time_margin,
+                                    min_or
+                                )
+                                st.session_state.personalized_html = html_content
+
+                                html_container = f"""
+                                <div style="min-height: 800px; width: 100%; padding: 20px;">
+                                    {html_content}
+                                </div>
+                                """
+                                st.components.v1.html(html_container, height=1200, scrolling=True)
+                                st.download_button(
+                                    label="📥 Download Analysis",
+                                    data=html_content,
+                                    file_name="personalized_trajectory_analysis.html",
+                                    mime="text/html"
+                                )
+
+                        # Display existing analysis if available
+                        elif st.session_state.personalized_html is not None:
+                            html_container = f"""
+                            <div style="min-height: 800px; width: 100%; padding: 20px;">
+                                {st.session_state.personalized_html}
+                            </div>
+                            """
+                            st.components.v1.html(html_container, height=1200, scrolling=True)
+                            st.download_button(
+                                label="📥 Download Analysis",
+                                data=st.session_state.personalized_html,
+                                file_name="personalized_trajectory_analysis.html",
+                                mime="text/html"
+                            )
+
+                    except Exception as e:
+                        st.error(f"Error in personalized analysis: {str(e)}")
+                        st.session_state.personalized_html = None
+                        st.stop()
+
+                # Custom Trajectory Filter Tab
+                with tabs[3]:
+                    st.header("Custom Trajectory Filter")
+                    st.markdown("""
+                    Visualize disease trajectories based on custom odds ratio and frequency thresholds.
+                    Select conditions and adjust filters to explore different trajectory patterns.
+                    """)
+
+                    viz_col, param_col = st.columns([3, 1])
+
+                    try:
+                        with param_col:
+                            st.markdown("### Parameters")
+                            min_or = st.slider(
+                                "Minimum Odds Ratio",
+                                1.0, 10.0, st.session_state.min_or, 0.5,
+                                key="custom_min_or",
+                                help="Filter trajectories by minimum odds ratio"
+                            )
+
+                            min_freq = st.slider(
+                                "Minimum Frequency",
+                                int(data['PairFrequency'].min()),
+                                int(data['PairFrequency'].max()),
+                                int(data['PairFrequency'].min()),
+                                help="Minimum number of occurrences required"
+                            )
+
+                            # Filter data based on both OR and frequency
+                            filtered_data = data[
+                                (data['OddsRatio'] >= min_or) &
+                                (data['PairFrequency'] >= min_freq)
+                            ]
+
+                            # Get conditions from filtered data
+                            unique_conditions = sorted(set(
+                                filtered_data['ConditionA'].unique()) |
+                                set(filtered_data['ConditionB'].unique())
+                            )
+
+                            selected_conditions = st.multiselect(
+                                "Select Initial Conditions",
+                                unique_conditions,
+                                default=st.session_state.selected_conditions,
+                                key="custom_select",
+                                help="Choose the starting conditions for trajectory analysis"
+                            )
+                            st.session_state.selected_conditions = selected_conditions
+
+                            if selected_conditions:
+                                max_years = math.ceil(filtered_data['MedianDurationYearsWithIQR']
+                                                    .apply(lambda x: parse_iqr(x)[0]).max())
+                                time_horizon = st.slider(
+                                    "Time Horizon (years)",
+                                    1, max_years, st.session_state.time_horizon,
+                                    key="custom_time_horizon",
+                                    help="Maximum time period to consider"
+                                )
+
+                                time_margin = st.slider(
+                                    "Time Margin",
+                                    0.0, 0.5, st.session_state.time_margin, 0.05,
+                                    key="custom_time_margin",
+                                    help="Allowable variation in time predictions"
+                                )
+
+                                generate_button = st.button(
+                                    "🔄 Generate Network",
+                                    key="custom_generate",
+                                    help="Click to generate trajectory network"
+                                )
+
+                        with viz_col:
+                            if selected_conditions and generate_button:
+                                with st.spinner("🌐 Generating network..."):
+                                    try:
+                                        # Clear previous network
+                                        st.session_state.network_html = None
+                                        
+                                        # Generate new network
+                                        html_content = create_network_graph(
+                                            filtered_data,
+                                            selected_conditions,
+                                            min_or,
+                                            time_horizon,
+                                            time_margin
+                                        )
+                                        st.session_state.network_html = html_content
+                                        st.components.v1.html(html_content, height=800)
+
+                                        st.download_button(
+                                            label="📥 Download Network",
+                                            data=html_content,
+                                            file_name="custom_trajectory_network.html",
+                                            mime="text/html"
+                                        )
+                                    except Exception as viz_error:
+                                        st.error(f"Failed to generate network visualization: {str(viz_error)}")
+                                        st.session_state.network_html = None
+                            
+                            # Display existing network if available
+                            elif st.session_state.network_html is not None:
+                                st.components.v1.html(st.session_state.network_html, height=800)
                                 st.download_button(
                                     label="📥 Download Network",
-                                    data=html_content,
+                                    data=st.session_state.network_html,
                                     file_name="custom_trajectory_network.html",
                                     mime="text/html"
                                 )
-                            except Exception as e:
-                                st.error(f"Failed to generate network: {str(e)}")
+
+                    except Exception as e:
+                        st.error(f"Error in custom trajectory analysis: {str(e)}")
+                        st.session_state.network_html = None
+                        st.stop()
+
+            except Exception as e:
+                st.error(f"Error processing data: {str(e)}")
+                st.stop()
+
+    except Exception as e:
+        st.error(f"Application error: {str(e)}")
+        st.stop()
+
+if __name__ == "__main__":
+    main()
 
 
 if __name__ == "__main__":
