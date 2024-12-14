@@ -818,7 +818,7 @@ def main():
     
     /* Control Panel Header */
     .control-panel h3 {
-        color: #1e293b;
+        color: #333333;
         font-size: 1.25rem;
         font-weight: 600;
         margin-bottom: 1.5rem;
@@ -834,12 +834,12 @@ def main():
     
     /* Slider Track */
     .stSlider > div > div > div > div {
-        background-color: #e2e8f0;
+        background-color: #f0f0f0;
     }
     
     /* Slider Handle */
     .stSlider > div > div > div > div > div {
-        background-color: #3b82f6;
+        background-color: #666666;
         border: 2px solid #ffffff;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
@@ -849,57 +849,57 @@ def main():
         width: 100%;
         height: 3rem;
         margin: 1rem 0;
-        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-        color: white;
-        border: none;
+        background: #f5f5f5;
+        color: #333333;
+        border: 1px solid #e0e0e0;
         border-radius: 8px;
         font-weight: 600;
         letter-spacing: 0.025em;
         text-transform: uppercase;
         font-size: 0.875rem;
         transition: all 0.2s ease;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     }
     
     .stButton > button:hover {
-        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+        background: #ebebeb;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         transform: translateY(-1px);
     }
     
     .stButton > button:active {
         transform: translateY(0);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     }
     
     /* Select Box Customization */
     .stSelectbox > div > div {
         background-color: #ffffff;
-        border: 1px solid #e2e8f0;
+        border: 1px solid #e0e0e0;
         border-radius: 8px;
         padding: 0.5rem;
     }
     
     .stSelectbox > div > div:hover {
-        border-color: #3b82f6;
+        border-color: #666666;
     }
     
     /* Number Input Customization */
     .stNumberInput > div > div > input {
         background-color: #ffffff;
-        border: 1px solid #e2e8f0;
+        border: 1px solid #e0e0e0;
         border-radius: 8px;
         padding: 0.5rem;
     }
     
     .stNumberInput > div > div > input:focus {
-        border-color: #3b82f6;
-        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+        border-color: #666666;
+        box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.05);
     }
     
     /* Help Text */
     .stMarkdown div.stMarkdown {
-        color: #64748b;
+        color: #333333;
         font-size: 0.875rem;
         line-height: 1.25rem;
     }
@@ -914,36 +914,37 @@ def main():
     .stTabs [data-baseweb="tab"] {
         height: 4rem;
         white-space: pre-wrap;
-        background-color: #f8fafc;
+        background-color: #f8f8f8;
         border-radius: 8px;
         transition: all 0.2s ease;
-        border: 1px solid #e2e8f0;
+        border: 1px solid #e0e0e0;
+        color: #333333;
     }
     
     .stTabs [data-baseweb="tab"]:hover {
-        background-color: #f1f5f9;
-        border-color: #3b82f6;
+        background-color: #f0f0f0;
+        border-color: #666666;
     }
     
     .stTabs [data-baseweb="tab"][aria-selected="true"] {
-        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-        color: white;
-        border: none;
+        background: #f0f0f0;
+        color: #000000;
+        border: 1px solid #666666;
     }
     
     /* Slider Labels */
     .stSlider > div > div > div > div[data-testid="stTickBar"] > div {
-        color: #64748b;
+        color: #333333;
         font-size: 0.875rem;
     }
     
     /* Help Icons */
     .stTooltipIcon {
-        color: #94a3b8;
+        color: #666666;
     }
     
     .stTooltipIcon:hover {
-        color: #3b82f6;
+        color: #333333;
     }
     
     /* Control Group Spacing */
@@ -961,7 +962,7 @@ def main():
     
     /* Info Messages */
     .element-container:has(div.stAlert) {
-        background-color: #f8fafc;
+        background-color: #f8f8f8;
         border-radius: 8px;
         padding: 1rem;
         margin: 1rem 0;
@@ -969,46 +970,47 @@ def main():
     
     /* Loading Spinner */
     .stSpinner > div {
-        border-color: #3b82f6;
+        border-color: #666666;
     }
     
     /* File Uploader */
     .stFileUploader > div {
-        background-color: #f8fafc;
-        border: 2px dashed #e2e8f0;
+        background-color: #f8f8f8;
+        border: 2px dashed #e0e0e0;
         border-radius: 12px;
         padding: 2rem;
         transition: all 0.2s ease;
     }
     
     .stFileUploader > div:hover {
-        border-color: #3b82f6;
-        background-color: #f1f5f9;
+        border-color: #666666;
+        background-color: #f0f0f0;
     }
     
     /* Download Button */
     .stDownloadButton > button {
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        background: #f5f5f5;
+        color: #333333;
     }
     
     .stDownloadButton > button:hover {
-        background: linear-gradient(135deg, #059669 0%, #047857 100%);
+        background: #ebebeb;
     }
     
     /* Multiselect */
     .stMultiSelect > div > div {
         background-color: #ffffff;
-        border: 1px solid #e2e8f0;
+        border: 1px solid #e0e0e0;
         border-radius: 8px;
     }
     
     .stMultiSelect > div > div:hover {
-        border-color: #3b82f6;
+        border-color: #666666;
     }
     
     /* Widget Labels */
     .stWidgetLabel {
-        color: #1e293b;
+        color: #333333;
         font-weight: 500;
         font-size: 0.95rem;
         margin-bottom: 0.5rem;
